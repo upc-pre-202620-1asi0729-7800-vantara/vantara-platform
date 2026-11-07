@@ -3,8 +3,9 @@
 Backend de **Vantara / Hatarium**, la plataforma de gestión ganadera.
 
 Proyecto Spring Boot organizado por *bounded contexts* y capas DDD
-(`domain`, `application`, `infrastructure`, `interfaces`). Esta rama contiene
-únicamente el shared kernel: no incluye bounded contexts ni pruebas.
+(`domain`, `application`, `infrastructure`, `interfaces`). La base en `main` y
+`develop` contiene únicamente el shared kernel. Esta rama `feature/payments`
+agrega el bounded context de pagos y sus pruebas.
 
 ## Stack
 
@@ -51,21 +52,51 @@ Con la aplicación levantada:
 - Swagger UI: <http://localhost:8080/swagger-ui.html>
 - OpenAPI JSON: <http://localhost:8080/v3/api-docs>
 
+## Payments
+
+Esta rama agrega el bounded context de pagos:
+
+- Checkout compartido para suscripciones y citas veterinarias.
+- Pago simulado como `paid` con `FakePay`.
+- Comprobantes en PDF generados automáticamente con OpenPDF.
+- Método de pago no sensible: marca, últimos cuatro dígitos y titular.
+
+Endpoints principales:
+
+- `GET/POST /api/v1/payments`
+- `GET /api/v1/payments/{id}`
+- `GET /api/v1/transactions?paymentId=`
+- `GET /api/v1/receipts?paymentId=`
+- `GET /api/v1/receipts/{id}/document`
+
+Ver [docs/payments.md](docs/payments.md) para el contrato, los ejemplos y el
+modelo de datos.
+
 ## Estructura base
 
 ```text
 src/main/java/com/vantara/platform/
 ├── VantaraPlatformApplication.java
-└── shared/
-    ├── application/result/              # Result<T, E> para resultados de casos de uso
-    ├── domain/aggregates/               # raíz de agregados con eventos de dominio
-    ├── domain/events/                   # contrato DomainEvent
-    ├── infrastructure/configuration/    # OpenAPI y Clock
-    ├── infrastructure/persistence/jpa/  # naming strategy snake_case + plural
-    └── interfaces/rest/                 # exception handler global
+├── shared/
+│   ├── application/result/              # Result<T, E> para resultados de casos de uso
+│   ├── domain/aggregates/               # raíz de agregados con eventos de dominio
+│   ├── domain/events/                   # contrato DomainEvent
+│   ├── infrastructure/configuration/    # OpenAPI y Clock
+│   ├── infrastructure/persistence/jpa/  # naming strategy snake_case + plural
+│   └── interfaces/rest/                 # exception handler global
+└── payments/
+    ├── domain/model/aggregates/         # Payment
+    ├── domain/model/entities/           # PaymentTransaction, PaymentReceipt
+    ├── domain/model/valueobjects/       # PaymentStatus, TransactionStatus, PaymentMethod
+    ├── domain/repositories/             # puertos de persistencia
+    ├── application/                     # comandos, queries y puertos
+    ├── infrastructure/persistence/jpa/  # entidades, mappers y adaptadores
+    ├── infrastructure/payment/          # FakePaymentGateway
+    ├── infrastructure/receipt/          # PDF y numeración de comprobantes
+    └── interfaces/rest/                 # controladores, resources y mappers
 ```
 
-Esta rama contiene únicamente el shared kernel. Los bounded contexts y sus
+La base contiene únicamente el shared kernel. Los bounded contexts y sus
 pruebas se agregan en ramas `feature/<contexto>`.
 
 Cada bounded context que se agregue debe seguir la misma estructura:
