@@ -1,0 +1,34 @@
+# Maven
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Other IDEs
+.vscode/
+.settings/
+.project
+.classpath
+.factorypath
+apt_generated/
+.springBeans
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+logs/
+
+# Local output
+out/
