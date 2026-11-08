@@ -51,7 +51,7 @@ class PaymentsContextIntegrationTest {
         ));
 
         assertThat(result.isSuccess()).isTrue();
-        var payment = result.success().orElseThrow();
+        var payment = result.toOptional().orElseThrow();
         assertThat(payment.getStatus()).isEqualTo(PaymentStatus.PAID);
         assertThat(payment.getAppointmentId()).isEqualTo("app-001");
         assertThat(paymentQueryService.findById(payment.getId())).isPresent();
@@ -81,7 +81,7 @@ class PaymentsContextIntegrationTest {
         ));
 
         assertThat(result.isSuccess()).isTrue();
-        var payment = result.success().orElseThrow();
+        var payment = result.toOptional().orElseThrow();
         assertThat(payment.getAppointmentId()).isNull();
         assertThat(payment.getPaymentMethod()).isNull();
         assertThat(paymentQueryService.findAll())
