@@ -1,22 +1,21 @@
-package com.vantara.platform.shared.infrastructure.persistence.jpa.strategy;
+package com.vantara.platform.shared.infrastructure.persistence.jpa.configuration.strategy;
 
 import org.hibernate.boot.model.naming.Identifier;
 import org.hibernate.boot.model.naming.PhysicalNamingStrategy;
 import org.hibernate.engine.jdbc.env.spi.JdbcEnvironment;
-
 import static io.github.encryptorcode.pluralize.Pluralize.pluralize;
 
 /**
- * Hibernate physical naming strategy that converts identifiers to snake case.
- * Table names are pluralized before snake-case conversion.
+ * Snake Case With Pluralized Table Physical Naming Strategy
+ * @summary
+ * PhysicalNamingStrategy implementation that converts entity names to snake_case and table names to pluralized snake_case.
  *
- * @see PhysicalNamingStrategy
+ * @since 1.0.0
  */
-public class SnakeCasePhysicalNamingStrategy implements PhysicalNamingStrategy {
-
+public class SnakeCaseWithPluralizedTablePhysicalNamingStrategy implements PhysicalNamingStrategy {
     @Override
     public Identifier toPhysicalCatalogName(Identifier identifier, JdbcEnvironment jdbcEnvironment) {
-        return this.toSnakeCase(identifier);
+        return null;
     }
 
     @Override
@@ -39,9 +38,15 @@ public class SnakeCasePhysicalNamingStrategy implements PhysicalNamingStrategy {
         return this.toSnakeCase(identifier);
     }
 
+    /**
+     * Convert identifier to snake case
+     * @param identifier Identifier
+     * @return Identifier
+     */
     private Identifier toSnakeCase(final Identifier identifier) {
-        if (identifier == null) return null;
-
+        if (identifier == null) {
+            return null;
+        }
         final String regex = "([a-z])([A-Z])";
         final String replacement = "$1_$2";
         final String newName = identifier.getText()
@@ -50,6 +55,11 @@ public class SnakeCasePhysicalNamingStrategy implements PhysicalNamingStrategy {
         return Identifier.toIdentifier(newName);
     }
 
+    /**
+     * Convert identifier to plural
+     * @param identifier Identifier
+     * @return Identifier
+     */
     private Identifier toPlural(final Identifier identifier) {
         final String newName = pluralize(identifier.getText());
         return Identifier.toIdentifier(newName);

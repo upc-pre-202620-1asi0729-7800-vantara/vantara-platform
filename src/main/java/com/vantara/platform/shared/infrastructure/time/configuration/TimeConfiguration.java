@@ -1,4 +1,4 @@
-package com.vantara.platform.shared.infrastructure.configuration.time;
+package com.vantara.platform.shared.infrastructure.time.configuration;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
