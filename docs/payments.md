@@ -117,9 +117,38 @@ son referencias lógicas entre bounded contexts.
 ## Pruebas
 
 ```powershell
-$env:JAVA_HOME="C:\ruta\a\jdk-21"
+$env:JAVA_HOME="C:\Users\juand\.jdks\openjdk-27.0.1.0.3"
 .\mvnw.cmd test
 ```
 
-Las pruebas actuales cubren las reglas del agregado `Payment`, el value object
-`PaymentMethod` y la entidad `PaymentReceipt`.
+Las pruebas cubren las reglas del agregado `Payment`, el value object
+`PaymentMethod`, la entidad `PaymentReceipt` y el contrato REST completo
+(creación, listado, transacciones, comprobantes y PDF).
+
+## Integración local con el frontend
+
+1. Configurar las credenciales de MySQL en la misma terminal (no se versionan):
+
+   ```powershell
+   $env:DATABASE_USER="root"
+   $env:DATABASE_PASSWORD="TU_PASSWORD"
+   ```
+
+2. Levantar el backend:
+
+   ```powershell
+   .\mvnw.cmd spring-boot:run
+   ```
+
+3. El frontend Angular (`http://localhost:4200`) consume
+   `http://localhost:8080/api/v1`. El backend permite ese origen por defecto;
+   para otros orígenes usar `CORS_ALLOWED_ORIGINS`.
+
+4. Verificar CORS con un preflight:
+
+   ```powershell
+   curl.exe -i -X OPTIONS http://localhost:8080/api/v1/payments `
+     -H "Origin: http://localhost:4200" `
+     -H "Access-Control-Request-Method: POST"
+   ```
+
