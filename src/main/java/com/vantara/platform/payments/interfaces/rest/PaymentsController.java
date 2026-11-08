@@ -1,11 +1,14 @@
 package com.vantara.platform.payments.interfaces.rest;
 
+import com.vantara.platform.payments.application.commandservices.PaymentCommandFailure;
 import com.vantara.platform.payments.application.commandservices.PaymentCommandService;
 import com.vantara.platform.payments.application.queryservices.PaymentQueryService;
+import com.vantara.platform.payments.domain.model.aggregates.Payment;
 import com.vantara.platform.payments.interfaces.rest.resources.CreatePaymentResource;
 import com.vantara.platform.payments.interfaces.rest.resources.PaymentResource;
 import com.vantara.platform.payments.interfaces.rest.transform.CreatePaymentCommandMapper;
 import com.vantara.platform.payments.interfaces.rest.transform.PaymentResourceMapper;
+import com.vantara.platform.shared.application.result.Result;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -73,14 +76,14 @@ public class PaymentsController {
     @PostMapping
     public ResponseEntity<?> create(@Valid @RequestBody CreatePaymentResource resource, Locale locale) {
         var result = commandService.handle(commandMapper.toCommand(resource));
-        if (result.isFailure()) {
-            var failure = result.failure().orElseThrow();
-            var message = messageSource.getMessage(failure.messageKey(), null, failure.messageKey(), locale);
+        if (result instanceof Result.Failure<Payment, PaymentCommandFailure> failure) {
+            var message = messageSource.getMessage(
+                    failure.error().messageKey(), null, failure.error().messageKey(), locale);
             return ResponseEntity.badRequest()
                     .body(ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, message));
         }
 
-        var payment = result.success().orElseThrow();
+        var payment = result.toOptional().orElseThrow();
         return ResponseEntity.created(URI.create("/api/v1/payments/" + payment.getId()))
                 .body(resourceMapper.toResource(payment));
     }
