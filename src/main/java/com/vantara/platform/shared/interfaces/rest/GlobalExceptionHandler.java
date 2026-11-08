@@ -1,83 +1,143 @@
 package com.vantara.platform.shared.interfaces.rest;
 
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.MessageSource;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
-import org.springframework.web.ErrorResponse;
+import com.vantara.platform.shared.application.result.ApplicationError;
+import com.vantara.platform.shared.interfaces.rest.transform.ErrorResponseAssembler;
+import org.jspecify.annotations.NullMarked;
+import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
-import java.util.Locale;
-import java.util.Objects;
-import java.util.stream.Collectors;
+import java.text.MessageFormat;
+import java.util.MissingResourceException;
+import java.util.ResourceBundle;
 
 /**
- * Interface-layer exception handler that translates domain and validation
- * errors into HTTP problem responses.
- *
- * <p>Handles:</p>
- * <ul>
- *     <li>{@link IllegalArgumentException}: domain invariant violations and
- *     input validation.</li>
- *     <li>{@link MethodArgumentNotValidException}: Jakarta Bean Validation
- *     failures on request resources.</li>
- * </ul>
- *
- * <p>Error messages are localized per request locale.</p>
+ * Global exception handler for REST API.
+ * Provides centralized exception handling for the entire application,
+ * ensuring all unhandled exceptions are translated to consistent
+ * HTTP responses via the shared error assembly pattern.
  */
-@Slf4j
 @RestControllerAdvice
+@NullMarked
 public class GlobalExceptionHandler {
-
-    private final MessageSource messageSource;
-
-    public GlobalExceptionHandler(MessageSource messageSource) {
-        this.messageSource = messageSource;
-    }
+    private static final String MESSAGES_BASENAME = "messages";
+    // Without this control, a missing messages_en falls back to the JVM default locale (e.g. Spanish)
+    private static final ResourceBundle.Control NO_FALLBACK =
+            ResourceBundle.Control.getNoFallbackControl(ResourceBundle.Control.FORMAT_PROPERTIES);
 
     /**
-     * Handles Jakarta Bean Validation failures on request bodies.
+     * Handles validation exceptions from Spring's request body validation.
+     * Maps validation failure to a standardized error response.
      *
-     * @param exception the validation exception
-     * @param locale    request locale
-     * @return HTTP 400 problem response
+     * @param ex the validation exception from @Valid binding
+     * @return error response with BAD_REQUEST status
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    ErrorResponse handleException(MethodArgumentNotValidException exception, Locale locale) {
-        String prefix = messageSource.getMessage("errors.found", null, locale);
-        String fields = exception.getFieldErrors().stream()
-                .map(fieldError -> messageSource.getMessage(fieldError, locale))
-                .collect(Collectors.joining(", "));
-        log.warn("Validation failed: {}", fields);
-        return ErrorResponse.create(
-                exception,
-                HttpStatusCode.valueOf(HttpStatus.BAD_REQUEST.value()),
-                prefix + " " + fields
-        );
+    public ResponseEntity<?> handleMethodArgumentNotValid(MethodArgumentNotValidException ex) {
+        var fieldErrors = ex.getBindingResult().getFieldErrors();
+        var validationPrefix = resolveMessageOrDefault("validation.field.prefix", "Field");
+        var errorDetails = fieldErrors.isEmpty()
+                ? resolveMessageOrDefault("validation.request.failed", "Request validation failed")
+                : fieldErrors.stream()
+                  .map(error -> "%s %s: %s".formatted(
+                          validationPrefix,
+                          error.getField(),
+                          error.getDefaultMessage()
+                  ))
+                  .reduce((a, b) -> a + "; " + b)
+                  .orElse(resolveMessageOrDefault("validation.request.failed", "Request validation failed"));
+
+        var applicationError = ApplicationError.validationError("request-body", errorDetails);
+        return ErrorResponseAssembler.toErrorResponseFromApplicationError(applicationError);
     }
 
     /**
-     * Handles domain invariant violations and invalid input.
+     * Handles invalid request arguments such as malformed UUID path or payload values.
      *
-     * @param exception the illegal argument exception
-     * @param locale    request locale
-     * @return HTTP 400 problem response
+     * @param ex the illegal argument exception
+     * @return error response with BAD_REQUEST status
      */
     @ExceptionHandler(IllegalArgumentException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    ErrorResponse handleException(IllegalArgumentException exception, Locale locale) {
-        String messageKey = exception.getMessage() != null ? exception.getMessage() : "errors.found";
-        String message = Objects.requireNonNullElse(
-                messageSource.getMessage(messageKey, null, messageKey, locale),
-                messageKey);
-        log.warn("Illegal argument: {}", message);
-        return ErrorResponse.create(
-                exception,
-                HttpStatusCode.valueOf(HttpStatus.BAD_REQUEST.value()),
-                message);
+    public ResponseEntity<?> handleIllegalArgumentException(IllegalArgumentException ex) {
+        var applicationError = ApplicationError.validationError(
+                resolveMessageOrDefault("validation.request.argument", "request-argument"),
+                ex.getMessage() != null ? ex.getMessage() : resolveMessageOrDefault("validation.request.failed", "Request validation failed")
+        );
+        return ErrorResponseAssembler.toErrorResponseFromApplicationError(applicationError);
+    }
+
+    /**
+     * Handles requests to paths that do not exist, so they are answered with 404 instead of
+     * falling into the generic handler.
+     *
+     * @param ex the exception raised by Spring MVC
+     * @return error response with NOT_FOUND status
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<?> handleNoResourceFound(NoResourceFoundException ex) {
+        var applicationError = ApplicationError.notFound("resource", ex.getResourcePath());
+        return ErrorResponseAssembler.toErrorResponseFromApplicationError(applicationError);
+    }
+
+    /**
+     * Handles request bodies that cannot be read, such as malformed JSON.
+     *
+     * @param ex the exception raised by the message converters
+     * @return error response with BAD_REQUEST status
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<?> handleHttpMessageNotReadable(HttpMessageNotReadableException ex) {
+        var applicationError = ApplicationError.validationError(
+                "request-body",
+                resolveMessageOrDefault("validation.request.unreadable", "Request body is missing or malformed"));
+        return ErrorResponseAssembler.toErrorResponseFromApplicationError(applicationError);
+    }
+
+    /**
+     * Handles unexpected runtime exceptions not caught by specific handlers.
+     * Maps to a generic unexpected error response.
+     *
+     * @param ex the unhandled runtime exception
+     * @return error response with INTERNAL_SERVER_ERROR status
+     */
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<?> handleRuntimeException(RuntimeException ex) {
+        var applicationError = ApplicationError.unexpected(
+                resolveMessageOrDefault("error.unexpected.context", "global-exception-handler"),
+                ex.getMessage() != null ? ex.getMessage() : "An unexpected error occurred"
+        );
+        return ErrorResponseAssembler.toErrorResponseFromApplicationError(applicationError);
+    }
+
+    /**
+     * Handles all other exceptions not matched by specific handlers.
+     * Provides a final fallback for any unexpected exception type.
+     *
+     * @param ex the exception
+     * @return error response with INTERNAL_SERVER_ERROR status
+     */
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<?> handleException(Exception ex) {
+        var applicationError = ApplicationError.unexpected(
+                resolveMessageOrDefault("error.unexpected.context", "global-exception-handler"),
+                ex.getMessage() != null ? ex.getMessage() : "An unexpected error occurred"
+        );
+        return ErrorResponseAssembler.toErrorResponseFromApplicationError(applicationError);
+    }
+
+    private String resolveMessageOrDefault(String key, String defaultValue, Object... args) {
+        try {
+            var bundle = ResourceBundle.getBundle(MESSAGES_BASENAME, LocaleContextHolder.getLocale(), NO_FALLBACK);
+            if (!bundle.containsKey(key)) {
+                return defaultValue;
+            }
+            return MessageFormat.format(bundle.getString(key), args);
+        } catch (MissingResourceException ex) {
+            return defaultValue;
+        }
     }
 }

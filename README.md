@@ -9,15 +9,15 @@ agrega el bounded context de pagos y sus pruebas.
 
 ## Stack
 
-- Java 21 (se puede compilar con un JDK superior usando `--release 21`)
-- Spring Boot 3.5.7 (Web, Data JPA, Validation)
+- Java 27
+- Spring Boot 4.1.2 (Web MVC, Data JPA, Validation)
 - MySQL 8 en desarrollo/producción
 - springdoc-openapi / Swagger UI
 - Maven
 
 ## Requisitos
 
-- JDK 21 o superior
+- JDK 27
 - Maven 3.9+ **o** usar el wrapper incluido (`mvnw` / `mvnw.cmd`)
 - MySQL 8 para ejecutar con el perfil `dev`
 
@@ -78,42 +78,49 @@ modelo de datos.
 src/main/java/com/vantara/platform/
 ├── VantaraPlatformApplication.java
 ├── shared/
-│   ├── application/result/              # Result<T, E> para resultados de casos de uso
-│   ├── domain/aggregates/               # raíz de agregados con eventos de dominio
-│   ├── domain/events/                   # contrato DomainEvent
-│   ├── infrastructure/configuration/    # OpenAPI y Clock
-│   ├── infrastructure/persistence/jpa/  # naming strategy snake_case + plural
-│   └── interfaces/rest/                 # exception handler global
+│   ├── application/result/                          # Result<T, E> y ApplicationError
+│   ├── domain/model/aggregates/                     # AbstractDomainAggregateRoot<T>
+│   ├── domain/model/events/                         # contrato DomainEvent
+│   ├── infrastructure/documentation/openapi/configuration/   # OpenApiConfiguration
+│   ├── infrastructure/i18n/configuration/           # LocaleConfiguration (Accept-Language)
+│   ├── infrastructure/persistence/jpa/configuration/strategy/ # naming snake_case + tablas en plural
+│   ├── infrastructure/persistence/jpa/entities/     # AuditableAbstractPersistenceEntity
+│   ├── infrastructure/time/configuration/           # Clock
+│   └── interfaces/rest/                             # GlobalExceptionHandler, resources/, transform/
+├── iam/                                             # bounded context Identity and Access Management
+│   └── domain/                                      # capa de dominio
 └── payments/
-    ├── domain/model/aggregates/         # Payment
-    ├── domain/model/entities/           # PaymentTransaction, PaymentReceipt
-    ├── domain/model/valueobjects/       # PaymentStatus, TransactionStatus, PaymentMethod
-    ├── domain/repositories/             # puertos de persistencia
-    ├── application/                     # comandos, queries y puertos
-    ├── infrastructure/persistence/jpa/  # entidades, mappers y adaptadores
-    ├── infrastructure/payment/          # FakePaymentGateway
-    ├── infrastructure/receipt/          # PDF y numeración de comprobantes
-    └── interfaces/rest/                 # controladores, resources y mappers
+    ├── domain/model/aggregates/                     # Payment
+    ├── domain/model/entities/                       # PaymentTransaction, PaymentReceipt
+    ├── domain/model/valueobjects/                   # PaymentStatus, TransactionStatus, PaymentMethod
+    ├── domain/repositories/                         # puertos de persistencia
+    ├── application/                                 # comandos, queries y puertos
+    ├── infrastructure/persistence/jpa/              # entidades, mappers y adaptadores
+    ├── infrastructure/payment/                      # FakePaymentGateway
+    ├── infrastructure/receipt/                      # PDF y numeración de comprobantes
+    └── interfaces/rest/                             # controladores, resources y mappers
 ```
 
-La base contiene únicamente el shared kernel. Los bounded contexts y sus
-pruebas se agregan en ramas `feature/<contexto>`.
+La base en `main` y `develop` contiene únicamente el shared kernel. Los bounded
+contexts y sus pruebas se agregan en ramas `feature/<contexto>`.
 
-Cada bounded context que se agregue debe seguir la misma estructura:
+Cada bounded context sigue esta estructura (la de la referencia de Efrain):
 
 ```text
 <context>/
-├── domain/model/aggregates
-├── domain/model/valueobjects
-├── domain/model/events
-├── domain/repositories
-├── application/commands
-├── application/queries
-├── application/commandservices
-├── application/queryservices
-├── application/internal/...
-├── infrastructure/persistence/jpa/...
-└── interfaces/rest/...
+├── domain/
+│   ├── exceptions/
+│   ├── model/{aggregates,entities,valueobjects,commands,queries,events}/
+│   └── repositories/
+├── application/
+│   ├── commandservices/        # contratos de escritura (CQRS)
+│   ├── queryservices/          # contratos de lectura (CQRS)
+│   └── internal/{commandservices,queryservices,eventhandlers,outboundservices/<puerto>}/
+├── infrastructure/
+│   └── persistence/jpa/{adapters,assemblers,converters,embeddables,entities,repositories}/
+└── interfaces/
+    ├── acl/                    # fachadas hacia otros bounded contexts
+    └── rest/{resources,transform}/
 ```
 
 ## Convenciones

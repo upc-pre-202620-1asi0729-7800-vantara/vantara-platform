@@ -1,4 +1,4 @@
-package com.vantara.platform.shared.domain.events;
+package com.vantara.platform.shared.domain.model.events;
 
 import java.time.Instant;
 
