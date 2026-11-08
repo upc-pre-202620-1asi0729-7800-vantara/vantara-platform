@@ -4,6 +4,7 @@ import com.vantara.platform.shared.application.result.ApplicationError;
 import com.vantara.platform.shared.interfaces.rest.transform.ErrorResponseAssembler;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -94,6 +95,20 @@ public class GlobalExceptionHandler {
         var applicationError = ApplicationError.validationError(
                 "request-body",
                 resolveMessageOrDefault("validation.request.unreadable", "Request body is missing or malformed"));
+        return ErrorResponseAssembler.toErrorResponseFromApplicationError(applicationError);
+    }
+
+    /**
+     * Handles a unique constraint hit by concurrent requests (for example two sign-ups with the same
+     * email) as a conflict. The database message is not exposed.
+     *
+     * @param ex the exception raised by the persistence layer
+     * @return error response with CONFLICT status
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<?> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+        var applicationError = ApplicationError.conflict(
+                "resource", resolveMessageOrDefault("error.conflict.data", "The resource already exists"));
         return ErrorResponseAssembler.toErrorResponseFromApplicationError(applicationError);
     }
 
