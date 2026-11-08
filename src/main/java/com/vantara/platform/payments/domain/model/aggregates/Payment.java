@@ -2,7 +2,7 @@ package com.vantara.platform.payments.domain.model.aggregates;
 
 import com.vantara.platform.payments.domain.model.valueobjects.PaymentMethod;
 import com.vantara.platform.payments.domain.model.valueobjects.PaymentStatus;
-import com.vantara.platform.shared.domain.aggregates.AbstractDomainAggregateRoot;
+import com.vantara.platform.shared.domain.model.aggregates.AbstractDomainAggregateRoot;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -19,7 +19,7 @@ import java.util.regex.Pattern;
  * {@code appointmentId} is {@code null} the payment represents a subscription
  * or another standalone payment.</p>
  */
-public final class Payment extends AbstractDomainAggregateRoot {
+public final class Payment extends AbstractDomainAggregateRoot<Payment> {
 
     private static final Pattern CURRENCY_PATTERN = Pattern.compile("[A-Z]{3}");
 
