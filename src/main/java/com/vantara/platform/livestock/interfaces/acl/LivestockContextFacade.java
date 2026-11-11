@@ -1,5 +1,8 @@
 package com.vantara.platform.livestock.interfaces.acl;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+
 /**
  * ACL facade that exposes the livestock management capabilities other bounded contexts need.
  *
@@ -20,4 +23,23 @@ public interface LivestockContextFacade {
      * @return {@code true} when the animal is active, female and not a calf, so it can have reproductive events
      */
     boolean isReproductiveFemale(Long animalId);
+
+    /**
+     * @param earTag ear tag to look up
+     * @return {@code true} when an animal already uses the ear tag
+     */
+    boolean existsAnimalByEarTag(String earTag);
+
+    /**
+     * Registers a calf born to an animal; the calf inherits the lot, species and breed of its mother.
+     *
+     * @param motherId  identifier of the mother
+     * @param name      name of the calf
+     * @param earTag    ear tag of the calf
+     * @param sex       {@code FEMALE} or {@code MALE}
+     * @param weightKg  birth weight in kilograms
+     * @param birthDate birth date
+     * @return identifier of the registered calf, or {@code 0L} when it could not be registered
+     */
+    Long registerCalf(Long motherId, String name, String earTag, String sex, BigDecimal weightKg, LocalDate birthDate);
 }

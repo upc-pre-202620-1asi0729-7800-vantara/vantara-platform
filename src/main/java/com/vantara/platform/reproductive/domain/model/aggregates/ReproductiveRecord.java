@@ -144,6 +144,24 @@ public class ReproductiveRecord extends AbstractDomainAggregateRoot<Reproductive
     }
 
     /**
+     * Checks, without changing the record, that a calving can be registered on the given date.
+     *
+     * <p>Lets callers validate before triggering side effects in other contexts (such as creating the calf).</p>
+     *
+     * @param on  date of the calving
+     * @param now registration instant
+     * @throws InvalidReproductiveStateException     when the pregnancy already ended
+     * @throws InvalidReproductiveEventDateException when the date is out of range
+     */
+    public void ensureCanRegisterCalving(LocalDate on, Instant now) {
+        Objects.requireNonNull(on, "Calving date cannot be null");
+        if (!status.isPregnancyInProgress()) {
+            throw new InvalidReproductiveStateException("The calving was already registered for this pregnancy");
+        }
+        requireBetweenAndToday(on, confirmedOn, "calving", "pregnancy confirmation", now);
+    }
+
+    /**
      * Registers the calving that ends the pregnancy.
      *
      * @param on          date of the calving, between the confirmation and today
@@ -155,11 +173,7 @@ public class ReproductiveRecord extends AbstractDomainAggregateRoot<Reproductive
      * @throws InvalidReproductiveEventDateException when the date is out of range
      */
     public void registerCalving(LocalDate on, CalvingOutcome outcome, AnimalId calfId, WeightInKg birthWeight, Instant now) {
-        Objects.requireNonNull(on, "Calving date cannot be null");
-        if (!status.isPregnancyInProgress()) {
-            throw new InvalidReproductiveStateException("The calving was already registered for this pregnancy");
-        }
-        requireBetweenAndToday(on, confirmedOn, "calving", "pregnancy confirmation", now);
+        ensureCanRegisterCalving(on, now);
 
         this.calving = new Calving(on, outcome, calfId, birthWeight);
         this.status = ReproductiveStatus.ENDED;

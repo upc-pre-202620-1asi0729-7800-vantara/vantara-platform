@@ -1,5 +1,6 @@
 package com.vantara.platform.reproductive.application.commandservices;
 
+import com.vantara.platform.reproductive.domain.model.commands.RegisterCalvingCommand;
 import com.vantara.platform.reproductive.domain.model.commands.RegisterPregnancyCommand;
 import com.vantara.platform.shared.application.result.ApplicationError;
 import com.vantara.platform.shared.application.result.Result;
@@ -17,4 +18,13 @@ public interface ReproductiveRecordCommandService {
      * @see RegisterPregnancyCommand
      */
     Result<Long, ApplicationError> handle(RegisterPregnancyCommand command);
+
+    /**
+     * Handles the registration of the calving that ends a pregnancy, optionally registering the calf in livestock.
+     *
+     * @param command calving registration command
+     * @return identifier of the updated reproductive record, or an application error
+     * @see RegisterCalvingCommand
+     */
+    Result<Long, ApplicationError> handle(RegisterCalvingCommand command);
 }

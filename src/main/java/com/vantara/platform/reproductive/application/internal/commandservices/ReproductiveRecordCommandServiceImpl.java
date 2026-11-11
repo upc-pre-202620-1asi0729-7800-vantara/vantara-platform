@@ -5,8 +5,11 @@ import com.vantara.platform.reproductive.application.internal.outboundservices.a
 import com.vantara.platform.reproductive.domain.exceptions.InvalidReproductiveEventDateException;
 import com.vantara.platform.reproductive.domain.exceptions.InvalidReproductiveStateException;
 import com.vantara.platform.reproductive.domain.model.aggregates.ReproductiveRecord;
+import com.vantara.platform.reproductive.domain.model.commands.RegisterCalvingCommand;
 import com.vantara.platform.reproductive.domain.model.commands.RegisterPregnancyCommand;
 import com.vantara.platform.reproductive.domain.model.valueobjects.AnimalId;
+import com.vantara.platform.reproductive.domain.model.valueobjects.CalvingOutcome;
+import com.vantara.platform.reproductive.domain.model.valueobjects.WeightInKg;
 import com.vantara.platform.reproductive.domain.repositories.ReproductiveRecordRepository;
 import com.vantara.platform.shared.application.result.ApplicationError;
 import com.vantara.platform.shared.application.result.Result;
@@ -54,6 +57,51 @@ public class ReproductiveRecordCommandServiceImpl implements ReproductiveRecordC
             }
             var record = ReproductiveRecord.confirmPregnancy(
                     animalId, command.confirmedOn(), command.expectedCalvingOn(), clock.instant());
+            return Result.success(recordRepository.save(record).getId());
+        } catch (IllegalArgumentException | InvalidReproductiveEventDateException e) {
+            return Result.failure(ApplicationError.validationError(RECORD, e.getMessage()));
+        } catch (InvalidReproductiveStateException e) {
+            return Result.failure(ApplicationError.businessRuleViolation(RECORD, e.getMessage()));
+        }
+    }
+
+    @Override
+    public Result<Long, ApplicationError> handle(RegisterCalvingCommand command) {
+        try {
+            var found = recordRepository.findById(command.recordId());
+            if (found.isEmpty()) {
+                return Result.failure(ApplicationError.notFound(RECORD, command.recordId().toString()));
+            }
+            var record = found.get();
+            var now = clock.instant();
+            var outcome = new CalvingOutcome(command.outcome());
+
+            // Validate everything the aggregate can check before creating the calf in another context.
+            record.ensureCanRegisterCalving(command.calvedOn(), now);
+            if (!externalLivestockService.isReproductiveFemale(record.getAnimalId())) {
+                return Result.failure(ApplicationError.businessRuleViolation(
+                        "reproductive-animal", "The mother must be an active adult female"));
+            }
+
+            AnimalId calfId = null;
+            WeightInKg birthWeight = null;
+            if (command.calf() != null) {
+                var calf = command.calf();
+                birthWeight = new WeightInKg(calf.weightKg());
+                if (externalLivestockService.existsAnimalByEarTag(calf.earTag())) {
+                    return Result.failure(ApplicationError.conflict(
+                            "Animal", "The ear tag '%s' already belongs to another animal".formatted(calf.earTag())));
+                }
+                var registeredCalf = externalLivestockService.registerCalf(
+                        record.getAnimalId(), calf, command.calvedOn());
+                if (registeredCalf.isEmpty()) {
+                    return Result.failure(ApplicationError.unexpected(
+                            "register-calving", "Livestock could not register the calf"));
+                }
+                calfId = registeredCalf.get();
+            }
+
+            record.registerCalving(command.calvedOn(), outcome, calfId, birthWeight, now);
             return Result.success(recordRepository.save(record).getId());
         } catch (IllegalArgumentException | InvalidReproductiveEventDateException e) {
             return Result.failure(ApplicationError.validationError(RECORD, e.getMessage()));
