@@ -1,7 +1,9 @@
 package com.vantara.platform.reproductive.application.commandservices;
 
 import com.vantara.platform.reproductive.domain.model.commands.RegisterCalvingCommand;
+import com.vantara.platform.reproductive.domain.model.commands.RegisterDryOffCommand;
 import com.vantara.platform.reproductive.domain.model.commands.RegisterPregnancyCommand;
+import com.vantara.platform.reproductive.domain.model.commands.RegisterWeaningCommand;
 import com.vantara.platform.shared.application.result.ApplicationError;
 import com.vantara.platform.shared.application.result.Result;
 
@@ -27,4 +29,22 @@ public interface ReproductiveRecordCommandService {
      * @see RegisterCalvingCommand
      */
     Result<Long, ApplicationError> handle(RegisterCalvingCommand command);
+
+    /**
+     * Handles the registration of the dry-off of a pregnant animal.
+     *
+     * @param command dry-off registration command
+     * @return identifier of the updated reproductive record, or an application error
+     * @see RegisterDryOffCommand
+     */
+    Result<Long, ApplicationError> handle(RegisterDryOffCommand command);
+
+    /**
+     * Handles the registration of the weaning of the calf, updating the calf in livestock.
+     *
+     * @param command weaning registration command
+     * @return identifier of the updated reproductive record, or an application error
+     * @see RegisterWeaningCommand
+     */
+    Result<Long, ApplicationError> handle(RegisterWeaningCommand command);
 }

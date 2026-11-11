@@ -7,8 +7,12 @@ import com.vantara.platform.reproductive.domain.model.queries.GetReproductiveRec
 import com.vantara.platform.reproductive.interfaces.rest.resources.RegisterPregnancyResource;
 import com.vantara.platform.reproductive.interfaces.rest.resources.ReproductiveRecordResource;
 import com.vantara.platform.reproductive.interfaces.rest.resources.RegisterCalvingResource;
+import com.vantara.platform.reproductive.interfaces.rest.resources.RegisterDryOffResource;
+import com.vantara.platform.reproductive.interfaces.rest.resources.RegisterWeaningResource;
 import com.vantara.platform.reproductive.interfaces.rest.transform.RegisterCalvingCommandFromResourceAssembler;
+import com.vantara.platform.reproductive.interfaces.rest.transform.RegisterDryOffCommandFromResourceAssembler;
 import com.vantara.platform.reproductive.interfaces.rest.transform.RegisterPregnancyCommandFromResourceAssembler;
+import com.vantara.platform.reproductive.interfaces.rest.transform.RegisterWeaningCommandFromResourceAssembler;
 import com.vantara.platform.reproductive.interfaces.rest.transform.ReproductiveRecordResourceFromEntityAssembler;
 import com.vantara.platform.shared.application.result.ApplicationError;
 import com.vantara.platform.shared.application.result.Result;
@@ -110,6 +114,80 @@ public class ReproductiveRecordsController {
             @RequestBody RegisterCalvingResource resource
     ) {
         var command = RegisterCalvingCommandFromResourceAssembler.toCommandFromResource(recordId, resource);
+        var result = commandService.handle(command).flatMap(this::findRecord);
+        return ResponseEntityAssembler.toResponseEntityFromResult(
+                result,
+                ReproductiveRecordResourceFromEntityAssembler::toResourceFromEntity,
+                HttpStatus.OK);
+    }
+
+    /**
+     * Registers the dry-off of a pregnant animal.
+     *
+     * @param recordId the reproductive record identifier
+     * @param resource the {@link RegisterDryOffResource} with the dry-off date
+     * @return the updated {@link ReproductiveRecordResource}
+     */
+    @PostMapping("/{recordId}/dry-offs")
+    @Operation(
+            summary = "Register dry-off",
+            description = "Registers the dry-off of an animal whose pregnancy is in progress."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Dry-off registered successfully",
+                    content = @Content(schema = @Schema(implementation = ReproductiveRecordResource.class))
+            ),
+            @ApiResponse(responseCode = "400", description = "Invalid or missing data, or date out of range"),
+            @ApiResponse(responseCode = "404", description = "Reproductive record not found"),
+            @ApiResponse(responseCode = "422", description = "The pregnancy ended or the dry-off was already registered")
+    })
+    public ResponseEntity<?> registerDryOff(
+            @PathVariable
+            @Parameter(description = "Reproductive record identifier", example = "1", required = true)
+            Long recordId,
+
+            @RequestBody RegisterDryOffResource resource
+    ) {
+        var command = RegisterDryOffCommandFromResourceAssembler.toCommandFromResource(recordId, resource);
+        var result = commandService.handle(command).flatMap(this::findRecord);
+        return ResponseEntityAssembler.toResponseEntityFromResult(
+                result,
+                ReproductiveRecordResourceFromEntityAssembler::toResourceFromEntity,
+                HttpStatus.OK);
+    }
+
+    /**
+     * Registers the weaning of the calf born in a calving.
+     *
+     * @param recordId the reproductive record identifier
+     * @param resource the {@link RegisterWeaningResource} with the weaning data
+     * @return the updated {@link ReproductiveRecordResource}
+     */
+    @PostMapping("/{recordId}/weanings")
+    @Operation(
+            summary = "Register weaning",
+            description = "Registers the weaning of the calf of a calving and updates the calf in livestock."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Weaning registered successfully",
+                    content = @Content(schema = @Schema(implementation = ReproductiveRecordResource.class))
+            ),
+            @ApiResponse(responseCode = "400", description = "Invalid data, or date out of range"),
+            @ApiResponse(responseCode = "404", description = "Reproductive record not found"),
+            @ApiResponse(responseCode = "422", description = "No calf pending weaning, or the calf cannot be weaned")
+    })
+    public ResponseEntity<?> registerWeaning(
+            @PathVariable
+            @Parameter(description = "Reproductive record identifier", example = "1", required = true)
+            Long recordId,
+
+            @RequestBody RegisterWeaningResource resource
+    ) {
+        var command = RegisterWeaningCommandFromResourceAssembler.toCommandFromResource(recordId, resource);
         var result = commandService.handle(command).flatMap(this::findRecord);
         return ResponseEntityAssembler.toResponseEntityFromResult(
                 result,

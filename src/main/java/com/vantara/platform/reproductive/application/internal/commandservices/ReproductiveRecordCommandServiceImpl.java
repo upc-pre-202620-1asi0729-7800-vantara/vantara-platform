@@ -6,7 +6,9 @@ import com.vantara.platform.reproductive.domain.exceptions.InvalidReproductiveEv
 import com.vantara.platform.reproductive.domain.exceptions.InvalidReproductiveStateException;
 import com.vantara.platform.reproductive.domain.model.aggregates.ReproductiveRecord;
 import com.vantara.platform.reproductive.domain.model.commands.RegisterCalvingCommand;
+import com.vantara.platform.reproductive.domain.model.commands.RegisterDryOffCommand;
 import com.vantara.platform.reproductive.domain.model.commands.RegisterPregnancyCommand;
+import com.vantara.platform.reproductive.domain.model.commands.RegisterWeaningCommand;
 import com.vantara.platform.reproductive.domain.model.valueobjects.AnimalId;
 import com.vantara.platform.reproductive.domain.model.valueobjects.CalvingOutcome;
 import com.vantara.platform.reproductive.domain.model.valueobjects.WeightInKg;
@@ -17,9 +19,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.util.function.Supplier;
 
 /**
  * Application service that executes reproductive record commands.
+ *
+ * <p>Each command runs in one transaction. Aggregate checks that can fail run before any side effect in another
+ * context, and unexpected failures propagate so the transaction rolls back.</p>
  */
 @Service
 @Transactional
@@ -42,7 +48,7 @@ public class ReproductiveRecordCommandServiceImpl implements ReproductiveRecordC
 
     @Override
     public Result<Long, ApplicationError> handle(RegisterPregnancyCommand command) {
-        try {
+        return execute(() -> {
             var animalId = new AnimalId(command.animalId());
             if (!externalLivestockService.existsAnimal(animalId)) {
                 return Result.failure(ApplicationError.notFound("Animal", animalId.animalId().toString()));
@@ -58,16 +64,12 @@ public class ReproductiveRecordCommandServiceImpl implements ReproductiveRecordC
             var record = ReproductiveRecord.confirmPregnancy(
                     animalId, command.confirmedOn(), command.expectedCalvingOn(), clock.instant());
             return Result.success(recordRepository.save(record).getId());
-        } catch (IllegalArgumentException | InvalidReproductiveEventDateException e) {
-            return Result.failure(ApplicationError.validationError(RECORD, e.getMessage()));
-        } catch (InvalidReproductiveStateException e) {
-            return Result.failure(ApplicationError.businessRuleViolation(RECORD, e.getMessage()));
-        }
+        });
     }
 
     @Override
     public Result<Long, ApplicationError> handle(RegisterCalvingCommand command) {
-        try {
+        return execute(() -> {
             var found = recordRepository.findById(command.recordId());
             if (found.isEmpty()) {
                 return Result.failure(ApplicationError.notFound(RECORD, command.recordId().toString()));
@@ -103,6 +105,52 @@ public class ReproductiveRecordCommandServiceImpl implements ReproductiveRecordC
 
             record.registerCalving(command.calvedOn(), outcome, calfId, birthWeight, now);
             return Result.success(recordRepository.save(record).getId());
+        });
+    }
+
+    @Override
+    public Result<Long, ApplicationError> handle(RegisterDryOffCommand command) {
+        return execute(() -> {
+            var found = recordRepository.findById(command.recordId());
+            if (found.isEmpty()) {
+                return Result.failure(ApplicationError.notFound(RECORD, command.recordId().toString()));
+            }
+            var record = found.get();
+            record.registerDryOff(command.dryOffOn(), clock.instant());
+            return Result.success(recordRepository.save(record).getId());
+        });
+    }
+
+    @Override
+    public Result<Long, ApplicationError> handle(RegisterWeaningCommand command) {
+        return execute(() -> {
+            var found = recordRepository.findById(command.recordId());
+            if (found.isEmpty()) {
+                return Result.failure(ApplicationError.notFound(RECORD, command.recordId().toString()));
+            }
+            var record = found.get();
+            var now = clock.instant();
+            var weight = WeightInKg.ofNullable(command.weightKg());
+
+            // Validate the aggregate before updating the calf in another context.
+            record.ensureCanRegisterWeaning(command.weanedOn(), now);
+            var calfId = record.getCalving().calfId();
+            if (!externalLivestockService.registerCalfWeaning(calfId, record.getAnimalId(), command.weanedOn(), weight)) {
+                return Result.failure(ApplicationError.businessRuleViolation(
+                        "calf-weaning", "The calf is not linked to this mother, is inactive or was already weaned"));
+            }
+
+            record.registerWeaning(command.weanedOn(), weight, now);
+            return Result.success(recordRepository.save(record).getId());
+        });
+    }
+
+    /**
+     * Runs a command translating the expected domain failures into application errors.
+     */
+    private Result<Long, ApplicationError> execute(Supplier<Result<Long, ApplicationError>> action) {
+        try {
+            return action.get();
         } catch (IllegalArgumentException | InvalidReproductiveEventDateException e) {
             return Result.failure(ApplicationError.validationError(RECORD, e.getMessage()));
         } catch (InvalidReproductiveStateException e) {

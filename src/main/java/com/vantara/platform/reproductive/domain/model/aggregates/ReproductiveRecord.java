@@ -182,6 +182,26 @@ public class ReproductiveRecord extends AbstractDomainAggregateRoot<Reproductive
     }
 
     /**
+     * Checks, without changing the record, that the weaning can be registered on the given date.
+     *
+     * <p>Lets callers validate before triggering side effects in other contexts (such as updating the calf).</p>
+     *
+     * @param on  date of the weaning
+     * @param now registration instant
+     * @throws InvalidReproductiveStateException     when there is no calving with a calf pending weaning
+     * @throws InvalidReproductiveEventDateException when the date is out of range
+     */
+    public void ensureCanRegisterWeaning(LocalDate on, Instant now) {
+        Objects.requireNonNull(on, "Weaning date cannot be null");
+        if (status != ReproductiveStatus.ENDED || !calving.hasCalf()) {
+            throw new InvalidReproductiveStateException(status == ReproductiveStatus.WEANED
+                    ? "The weaning was already registered for this calf"
+                    : "The weaning requires a calving with a registered calf");
+        }
+        requireBetweenAndToday(on, calving.calvedOn(), "weaning", "calving", now);
+    }
+
+    /**
      * Registers the weaning of the calf born in the calving.
      *
      * @param on     date of the weaning, between the calving and today
@@ -191,13 +211,7 @@ public class ReproductiveRecord extends AbstractDomainAggregateRoot<Reproductive
      * @throws InvalidReproductiveEventDateException when the date is out of range
      */
     public void registerWeaning(LocalDate on, WeightInKg weight, Instant now) {
-        Objects.requireNonNull(on, "Weaning date cannot be null");
-        if (status != ReproductiveStatus.ENDED || !calving.hasCalf()) {
-            throw new InvalidReproductiveStateException(status == ReproductiveStatus.WEANED
-                    ? "The weaning was already registered for this calf"
-                    : "The weaning requires a calving with a registered calf");
-        }
-        requireBetweenAndToday(on, calving.calvedOn(), "weaning", "calving", now);
+        ensureCanRegisterWeaning(on, now);
 
         this.weaning = new Weaning(on, weight);
         this.status = ReproductiveStatus.WEANED;

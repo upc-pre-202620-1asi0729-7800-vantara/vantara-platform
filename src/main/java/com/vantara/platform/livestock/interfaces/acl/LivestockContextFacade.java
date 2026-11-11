@@ -42,4 +42,16 @@ public interface LivestockContextFacade {
      * @return identifier of the registered calf, or {@code 0L} when it could not be registered
      */
     Long registerCalf(Long motherId, String name, String earTag, String sex, BigDecimal weightKg, LocalDate birthDate);
+
+    /**
+     * Marks a calf as weaned, updating its weight when one is given.
+     *
+     * @param calfId    identifier of the calf
+     * @param motherId  identifier of the mother the calf must be linked to
+     * @param weanedOn  weaning date
+     * @param weightKg  weight at weaning in kilograms, or {@code null} to keep the current weight
+     * @return {@code true} when the calf was updated; {@code false} when it is not linked to the mother, is inactive
+     *         or was already weaned
+     */
+    boolean registerCalfWeaning(Long calfId, Long motherId, LocalDate weanedOn, BigDecimal weightKg);
 }

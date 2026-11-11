@@ -3,6 +3,7 @@ package com.vantara.platform.reproductive.application.internal.outboundservices.
 import com.vantara.platform.livestock.interfaces.acl.LivestockContextFacade;
 import com.vantara.platform.reproductive.domain.model.commands.CalfRegistration;
 import com.vantara.platform.reproductive.domain.model.valueobjects.AnimalId;
+import com.vantara.platform.reproductive.domain.model.valueobjects.WeightInKg;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -52,5 +53,15 @@ public class ExternalLivestockService {
         var calfId = livestockContextFacade.registerCalf(
                 motherId.animalId(), calf.name(), calf.earTag(), calf.sex().name(), calf.weightKg(), birthDate);
         return calfId == null || calfId == 0L ? Optional.empty() : Optional.of(new AnimalId(calfId));
+    }
+
+    /**
+     * Marks a calf as weaned in livestock.
+     *
+     * @return {@code true} when livestock accepted the weaning
+     */
+    public boolean registerCalfWeaning(AnimalId calfId, AnimalId motherId, LocalDate weanedOn, WeightInKg weight) {
+        return livestockContextFacade.registerCalfWeaning(
+                calfId.animalId(), motherId.animalId(), weanedOn, weight == null ? null : weight.kilograms());
     }
 }
