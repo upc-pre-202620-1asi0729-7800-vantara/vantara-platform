@@ -3,7 +3,9 @@ package com.vantara.platform.reproductive.interfaces.rest;
 import com.vantara.platform.reproductive.application.commandservices.ReproductiveRecordCommandService;
 import com.vantara.platform.reproductive.application.queryservices.ReproductiveRecordQueryService;
 import com.vantara.platform.reproductive.domain.model.aggregates.ReproductiveRecord;
+import com.vantara.platform.reproductive.domain.model.queries.GetAllReproductiveRecordsQuery;
 import com.vantara.platform.reproductive.domain.model.queries.GetReproductiveRecordByIdQuery;
+import com.vantara.platform.reproductive.domain.model.queries.GetReproductiveRecordsByAnimalIdQuery;
 import com.vantara.platform.reproductive.interfaces.rest.resources.RegisterPregnancyResource;
 import com.vantara.platform.reproductive.interfaces.rest.resources.ReproductiveRecordResource;
 import com.vantara.platform.reproductive.interfaces.rest.resources.RegisterCalvingResource;
@@ -19,6 +21,7 @@ import com.vantara.platform.shared.application.result.Result;
 import com.vantara.platform.shared.interfaces.rest.transform.ResponseEntityAssembler;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -26,11 +29,15 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
@@ -189,6 +196,71 @@ public class ReproductiveRecordsController {
     ) {
         var command = RegisterWeaningCommandFromResourceAssembler.toCommandFromResource(recordId, resource);
         var result = commandService.handle(command).flatMap(this::findRecord);
+        return ResponseEntityAssembler.toResponseEntityFromResult(
+                result,
+                ReproductiveRecordResourceFromEntityAssembler::toResourceFromEntity,
+                HttpStatus.OK);
+    }
+
+    /**
+     * Gets the reproductive history, optionally filtered by animal.
+     *
+     * @param animalId optional animal identifier to filter by
+     * @return the records ordered chronologically; an empty list when there are no reproductive events
+     */
+    @GetMapping
+    @Operation(
+            summary = "Get reproductive history",
+            description = "Retrieves the reproductive records ordered chronologically, optionally filtered by animal. "
+                    + "Returns an empty list when no reproductive events are registered."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Reproductive history retrieved successfully",
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = ReproductiveRecordResource.class)))
+            ),
+            @ApiResponse(responseCode = "400", description = "Invalid animal identifier")
+    })
+    public ResponseEntity<List<ReproductiveRecordResource>> getReproductiveHistory(
+            @RequestParam(required = false)
+            @Parameter(description = "Animal identifier to filter by", example = "12")
+            Long animalId
+    ) {
+        var records = animalId == null
+                ? queryService.handle(new GetAllReproductiveRecordsQuery())
+                : queryService.handle(new GetReproductiveRecordsByAnimalIdQuery(animalId));
+        var resources = records.stream()
+                .map(ReproductiveRecordResourceFromEntityAssembler::toResourceFromEntity)
+                .toList();
+        return ResponseEntity.ok(resources);
+    }
+
+    /**
+     * Gets one reproductive record.
+     *
+     * @param recordId the reproductive record identifier
+     * @return the {@link ReproductiveRecordResource}
+     */
+    @GetMapping("/{recordId}")
+    @Operation(
+            summary = "Get reproductive record by id",
+            description = "Retrieves one reproductive record with its calving, dry-off and weaning data."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Reproductive record retrieved successfully",
+                    content = @Content(schema = @Schema(implementation = ReproductiveRecordResource.class))
+            ),
+            @ApiResponse(responseCode = "404", description = "Reproductive record not found")
+    })
+    public ResponseEntity<?> getReproductiveRecordById(
+            @PathVariable
+            @Parameter(description = "Reproductive record identifier", example = "1", required = true)
+            Long recordId
+    ) {
+        var result = findRecord(recordId);
         return ResponseEntityAssembler.toResponseEntityFromResult(
                 result,
                 ReproductiveRecordResourceFromEntityAssembler::toResourceFromEntity,
