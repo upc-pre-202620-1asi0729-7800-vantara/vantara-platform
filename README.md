@@ -4,13 +4,16 @@ Backend de **Vantara / Hatarium**, la plataforma de gestión ganadera.
 
 Proyecto Spring Boot organizado por *bounded contexts* y capas DDD
 (`domain`, `application`, `infrastructure`, `interfaces`). Esta rama contiene
-únicamente el shared kernel: no incluye bounded contexts ni pruebas.
+el shared kernel y el bounded context **IAM** (identidad y acceso). Los demás
+contextos están pendientes.
 
 ## Stack
 
 - Java 27
-- Spring Boot 4.1.2 (Web MVC, Data JPA, Validation)
-- MySQL 8 en desarrollo/producción
+- Spring Boot 4.1.2 (Web MVC, Data JPA, Validation, Security)
+- JWT (jjwt 0.12.6) y BCrypt
+- Flyway (el esquema se crea con migraciones; Hibernate solo valida)
+- MySQL 8 en desarrollo/producción, H2 en memoria para las pruebas
 - springdoc-openapi / Swagger UI
 - Maven
 
@@ -34,7 +37,12 @@ Proyecto Spring Boot organizado por *bounded contexts* y capas DDD
    $env:DATABASE_URL="jdbc:mysql://localhost:3306/vantara_platform?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=false"
    $env:DATABASE_USER="root"
    $env:DATABASE_PASSWORD="tu_password"
+   $env:JWT_SECRET="una-clave-de-al-menos-32-caracteres"   # obligatoria
    ```
+
+   Opcionales: `SPRING_PROFILES_ACTIVE` (`dev` por defecto), `SERVER_PORT` (`8080`),
+   `JWT_EXPIRATION_DAYS` (`7`) y `NOTIFICATIONS_EMAIL_LOG_CODES` (`false`; en `true` los códigos
+   de verificación se escriben en el log, solo para desarrollo local, porque aún no hay proveedor de correo).
 
 3. Levantar la aplicación:
 
@@ -43,6 +51,31 @@ Proyecto Spring Boot organizado por *bounded contexts* y capas DDD
    ```
 
    Por defecto usa el perfil `dev` y el puerto `8080`.
+
+## API de IAM
+
+| Método y ruta | Acceso | Descripción |
+|---|---|---|
+| `POST /api/v1/authentication/sign-up` | público | Registra la cuenta (pendiente de verificación) y envía un código de 6 dígitos |
+| `POST /api/v1/authentication/verify-email` | público | Activa la cuenta con el código |
+| `POST /api/v1/authentication/send-verification-code` | público | Reenvía el código (máximo uno por minuto) |
+| `POST /api/v1/authentication/sign-in` | público | Devuelve el token JWT |
+| `POST /api/v1/authentication/request-password-recovery` | público | Siempre responde 202, exista o no el correo |
+| `POST /api/v1/authentication/recover-password` | público | Cambia la contraseña con el código |
+| `POST /api/v1/contact-requests` | público | Formulario de contacto |
+| `GET /api/v1/users/me`, `GET /api/v1/users/{id}` | token | La cuenta propia (otro id responde 404) |
+| `GET /api/v1/roles` | token | Roles de la plataforma |
+
+Las rutas protegidas esperan `Authorization: Bearer <token>`.
+
+## Pruebas
+
+```powershell
+$env:JAVA_HOME="C:\ruta\al\jdk-27"
+.\mvnw.cmd -B -Dmaven.artifact.threads=1 clean test
+```
+
+Las pruebas usan H2 en memoria (perfil `test`) con el esquema de Flyway; no necesitan MySQL ni Docker.
 
 ## Swagger / OpenAPI
 
@@ -64,10 +97,11 @@ src/main/java/com/vantara/platform/
 │   ├── infrastructure/i18n/configuration/           # LocaleConfiguration (Accept-Language)
 │   ├── infrastructure/persistence/jpa/configuration/strategy/ # naming snake_case + tablas en plural
 │   ├── infrastructure/persistence/jpa/entities/     # AuditableAbstractPersistenceEntity
+│   ├── infrastructure/events/                       # DomainEventPublisher
 │   ├── infrastructure/time/configuration/           # Clock
 │   └── interfaces/rest/                             # GlobalExceptionHandler, resources/, transform/
 └── iam/                                             # bounded context Identity and Access Management
-    └── domain/                                      # (capa en curso) ver la estructura siguiente
+    ├── domain/  application/  infrastructure/  interfaces/   # ver la estructura siguiente
 ```
 
 Los bounded contexts se agregan uno por uno en ramas `feature/<contexto>`.
@@ -84,7 +118,8 @@ Cada bounded context sigue esta estructura (la de la referencia de Efrain):
 │   ├── queryservices/          # contratos de lectura (CQRS)
 │   └── internal/{commandservices,queryservices,eventhandlers,outboundservices/<puerto>}/
 ├── infrastructure/
-│   └── persistence/jpa/{adapters,assemblers,converters,embeddables,entities,repositories}/
+│   ├── persistence/jpa/{adapters,assemblers,converters,embeddables,entities,repositories}/
+│   └── hashing/, tokens/, email/, authorization/   # adaptadores de los puertos (solo IAM)
 └── interfaces/
     ├── acl/                    # fachadas hacia otros bounded contexts
     └── rest/{resources,transform}/
