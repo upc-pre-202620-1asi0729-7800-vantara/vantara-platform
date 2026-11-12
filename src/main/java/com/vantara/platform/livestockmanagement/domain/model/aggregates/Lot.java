@@ -1,14 +1,26 @@
+
 package com.vantara.platform.livestockmanagement.domain.model.aggregates;
 
-/** A physical ranch area used to group livestock. */
-public final class Lot {
+import com.vantara.platform.shared.domain.model.aggregates.AbstractDomainAggregateRoot;
+
+/**
+ * A physical ranch area used to group livestock.
+ */
+public final class Lot extends AbstractDomainAggregateRoot<Lot> {
+
     private final String id;
     private final String rancherId;
     private String name;
     private String purpose;
     private String status;
 
-    private Lot(String id, String rancherId, String name, String purpose, String status) {
+    private Lot(
+            String id,
+            String rancherId,
+            String name,
+            String purpose,
+            String status
+    ) {
         this.id = required(id, "Lot id");
         this.rancherId = required(rancherId, "Rancher id");
         this.name = required(name, "Lot name");
@@ -16,7 +28,13 @@ public final class Lot {
         this.status = required(status, "Lot status");
     }
 
-    public static Lot register(String id, String rancherId, String name, String purpose, String status) {
+    public static Lot register(
+            String id,
+            String rancherId,
+            String name,
+            String purpose,
+            String status
+    ) {
         return new Lot(id, rancherId, name, purpose, status);
     }
 
@@ -27,7 +45,9 @@ public final class Lot {
     }
 
     private static String required(String value, String label) {
-        if (value == null || value.isBlank()) throw new IllegalArgumentException(label + " cannot be blank");
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(label + " cannot be blank");
+        }
         return value.trim();
     }
 
