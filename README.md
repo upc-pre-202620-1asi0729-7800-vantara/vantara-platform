@@ -3,9 +3,10 @@
 Backend de **Vantara / Hatarium**, la plataforma de gestión ganadera.
 
 Proyecto Spring Boot organizado por *bounded contexts* y capas DDD
-(`domain`, `application`, `infrastructure`, `interfaces`). Esta rama contiene
-el shared kernel y el bounded context **IAM** (identidad y acceso). Los demás
-contextos están pendientes.
+(`domain`, `application`, `infrastructure`, `interfaces`). Esta rama
+`feature/profile-management` contiene el shared kernel, el bounded context
+**IAM** (identidad y acceso) y el bounded context **Profile** (datos personales
+y preferencias del usuario).
 
 ## Stack
 
@@ -68,6 +69,17 @@ contextos están pendientes.
 
 Las rutas protegidas esperan `Authorization: Bearer <token>`.
 
+## API de Profile
+
+| Método y ruta | Acceso | Descripción |
+|---|---|---|
+| `GET /api/v1/profiles/me` | token | Perfil del usuario autenticado; responde `404` hasta que lo guarde por primera vez |
+| `PUT /api/v1/profiles/me` | token | Crea o actualiza el perfil propio: nombre, organización, teléfono, foto, tema e idioma |
+
+El `userId` no lo envía el cliente: se resuelve del token con la ACL de IAM
+(`IamContextFacade`), y el correo electrónico no se guarda en el perfil porque
+es propiedad del contexto IAM.
+
 ## Pruebas
 
 ```powershell
@@ -100,8 +112,10 @@ src/main/java/com/vantara/platform/
 │   ├── infrastructure/events/                       # DomainEventPublisher
 │   ├── infrastructure/time/configuration/           # Clock
 │   └── interfaces/rest/                             # GlobalExceptionHandler, resources/, transform/
-└── iam/                                             # bounded context Identity and Access Management
-    ├── domain/  application/  infrastructure/  interfaces/   # ver la estructura siguiente
+├── iam/                                             # bounded context Identity and Access Management
+│   └── domain/  application/  infrastructure/  interfaces/   # ver la estructura siguiente
+└── profile/                                          # bounded context Profile Management
+    └── domain/  application/  infrastructure/  interfaces/
 ```
 
 Los bounded contexts se agregan uno por uno en ramas `feature/<contexto>`.
