@@ -1,20 +1,18 @@
 package com.vantara.platform.livestockmanagement.application.commandservices;
 
-import com.vantara.platform.livestockmanagement.domain.model.aggregates.Animal;
-import com.vantara.platform.livestockmanagement.domain.model.aggregates.FeedingPlan;
-import com.vantara.platform.livestockmanagement.domain.model.aggregates.Lot;
-import com.vantara.platform.livestockmanagement.domain.model.aggregates.Movement;
-import com.vantara.platform.livestockmanagement.domain.model.entities.FeedingLog;
-import com.vantara.platform.livestockmanagement.domain.model.entities.FeedingPlanItem;
+import com.vantara.platform.livestockmanagement.application.commands.*;
+import com.vantara.platform.livestockmanagement.domain.model.aggregates.*;
+import com.vantara.platform.livestockmanagement.domain.model.entities.*;
+import com.vantara.platform.shared.application.result.Result;
 
 /** Command contract for livestock registration and lifecycle operations. */
 public interface LivestockManagementCommandService {
-    Animal createAnimal(Animal animal);
-    Animal updateAnimal(String id, Animal replacement);
-    void deleteAnimal(String id);
-    Lot createLot(Lot lot);
-    Movement recordMovement(Movement movement);
-    FeedingPlan createFeedingPlan(FeedingPlan plan);
-    FeedingPlanItem createFeedingPlanItem(FeedingPlanItem item);
-    FeedingLog recordFeeding(FeedingLog log);
+    Result<Animal, LivestockManagementCommandFailure> handle(CreateAnimalCommand command);
+    Result<Animal, LivestockManagementCommandFailure> handle(UpdateAnimalCommand command);
+    Result<Boolean, LivestockManagementCommandFailure> handle(DeleteAnimalCommand command);
+    Result<Lot, LivestockManagementCommandFailure> handle(CreateLotCommand command);
+    Result<Movement, LivestockManagementCommandFailure> handle(RecordMovementCommand command);
+    Result<FeedingPlan, LivestockManagementCommandFailure> handle(CreateFeedingPlanCommand command);
+    Result<FeedingPlanItem, LivestockManagementCommandFailure> handle(CreateFeedingPlanItemCommand command);
+    Result<FeedingLog, LivestockManagementCommandFailure> handle(RecordFeedingCommand command);
 }
