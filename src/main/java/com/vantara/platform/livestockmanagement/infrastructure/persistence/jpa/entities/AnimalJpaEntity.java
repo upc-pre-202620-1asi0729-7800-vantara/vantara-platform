@@ -65,7 +65,7 @@ public class AnimalJpaEntity {
     @Column(nullable = false)
     private LocalDate registeredAt;
 
-    @Column(length = 2048)
+    @Column(columnDefinition = "MEDIUMTEXT")
     private String photoUrl;
 
     private LocalDate weanedOn;
