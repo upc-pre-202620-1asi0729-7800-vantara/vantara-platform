@@ -1,6 +1,6 @@
 package com.vantara.platform.livestockmanagement.interfaces.rest.resources;
 
-import com.vantara.platform.livestockmanagement.domain.model.entities.FeedingLog;
+import com.vantara.platform.livestockmanagement.domain.model.aggregates.FeedingLog;
 import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
