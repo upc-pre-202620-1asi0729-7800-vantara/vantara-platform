@@ -71,6 +71,11 @@ public final class Animal extends AbstractDomainAggregateRoot<Animal> {
         this.weanedOn = weanedOn;
     }
 
+    /** Moves the animal after the movement aggregate has validated its destination. */
+    public void assignToLot(String lotId) {
+        this.lotId = requireText(lotId, "Lot id");
+    }
+
     private static String requireText(String value, String label) {
         if (value == null || value.isBlank()) throw new IllegalArgumentException(label + " cannot be blank");
         return value.trim();
