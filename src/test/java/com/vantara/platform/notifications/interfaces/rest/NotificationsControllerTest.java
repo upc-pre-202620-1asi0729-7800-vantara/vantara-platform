@@ -1,10 +1,8 @@
 package com.vantara.platform.notifications.interfaces.rest;
 
-import com.vantara.platform.iam.domain.model.aggregates.User;
-import com.vantara.platform.iam.domain.model.valueobjects.EmailAddress;
-import com.vantara.platform.iam.domain.repositories.UserRepository;
 import com.vantara.platform.notifications.application.internal.commandservices.NotificationCommandServiceImpl;
 import com.vantara.platform.notifications.application.internal.queryservices.NotificationQueryServiceImpl;
+import com.vantara.platform.notifications.application.queryservices.NotificationRecipientLookup;
 import com.vantara.platform.notifications.domain.model.aggregates.Notification;
 import com.vantara.platform.notifications.domain.model.valueobjects.NotificationStatus;
 import com.vantara.platform.notifications.domain.model.valueobjects.NotificationType;
@@ -14,6 +12,7 @@ import org.springframework.http.MediaType;
 import com.vantara.platform.notifications.domain.repositories.NotificationRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -51,16 +50,19 @@ class NotificationsControllerTest {
     @BeforeEach
     void setUp() {
         repository = mock(NotificationRepository.class);
-        var users = mock(UserRepository.class);
-        var user = mock(User.class);
-        when(user.getId()).thenReturn(OWNER.value());
-        when(users.findByEmail(new EmailAddress(EMAIL))).thenReturn(Optional.of(user));
         var beans = new StaticListableBeanFactory();
-        beans.addBean("users", users);
-        var recipients = new AuthenticatedNotificationRecipient(beans.getBeanProvider(UserRepository.class));
+        var lookup = mock(NotificationRecipientLookup.class);
+        when(lookup.findByAuthenticatedName(EMAIL)).thenReturn(Optional.of(OWNER));
+        when(lookup.findByAuthenticatedName("unknown@example.com")).thenReturn(Optional.empty());
+        beans.addBean("recipientLookup", lookup);
+        mvc = createMvc(beans.getBeanProvider(NotificationRecipientLookup.class));
+    }
+
+    private MockMvc createMvc(ObjectProvider<NotificationRecipientLookup> lookup) {
+        var recipients = new AuthenticatedNotificationRecipient(lookup);
         var commands = new NotificationCommandServiceImpl(repository, Clock.fixed(NOW, ZoneOffset.UTC));
         var queries = new NotificationQueryServiceImpl(repository);
-        mvc = MockMvcBuilders.standaloneSetup(new NotificationsController(commands, queries, recipients))
+        return MockMvcBuilders.standaloneSetup(new NotificationsController(commands, queries, recipients))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
     }
@@ -68,6 +70,22 @@ class NotificationsControllerTest {
     @Test
     void anonymousRequestsDoNotReachPersistence() throws Exception {
         mvc.perform(get(PATH)).andExpect(status().isUnauthorized());
+        verifyNoInteractions(repository);
+    }
+
+    @Test
+    void unavailableIdentityLookupFailsClosed() throws Exception {
+        var emptyContext = new StaticListableBeanFactory();
+        var mvcWithoutLookup = createMvc(emptyContext.getBeanProvider(NotificationRecipientLookup.class));
+        mvcWithoutLookup.perform(get(PATH).principal(() -> EMAIL)).andExpect(status().isServiceUnavailable());
+        mvcWithoutLookup.perform(get(PATH)).andExpect(status().isUnauthorized());
+        verifyNoInteractions(repository);
+    }
+
+    @Test
+    void unknownOrBlankAuthenticatedNameFailsClosed() throws Exception {
+        mvc.perform(get(PATH).principal(() -> "unknown@example.com")).andExpect(status().isUnauthorized());
+        mvc.perform(get(PATH).principal(() -> " ")).andExpect(status().isUnauthorized());
         verifyNoInteractions(repository);
     }
 
