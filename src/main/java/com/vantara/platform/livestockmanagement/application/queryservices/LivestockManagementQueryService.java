@@ -1,6 +1,7 @@
 
 package com.vantara.platform.livestockmanagement.application.queryservices;
 
+import com.vantara.platform.livestockmanagement.application.queries.ExistsAnimalByEarTagQuery;
 import com.vantara.platform.livestockmanagement.application.queries.GetAllAnimalsQuery;
 import com.vantara.platform.livestockmanagement.application.queries.GetAnimalByIdQuery;
 import com.vantara.platform.livestockmanagement.application.queries.GetAllLotsQuery;
@@ -29,6 +30,8 @@ public interface LivestockManagementQueryService {
     List<Animal> handle(GetAllAnimalsQuery query);
 
     Optional<Animal> handle(GetAnimalByIdQuery query);
+
+    boolean handle(ExistsAnimalByEarTagQuery query);
 
     List<Lot> handle(GetAllLotsQuery query);
 

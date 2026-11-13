@@ -3,6 +3,7 @@ package com.vantara.platform.livestockmanagement.application.internal.queryservi
 
 import com.vantara.platform.livestockmanagement.application.queryservices.LivestockManagementQueryService;
 
+import com.vantara.platform.livestockmanagement.application.queries.ExistsAnimalByEarTagQuery;
 import com.vantara.platform.livestockmanagement.application.queries.GetAllAnimalsQuery;
 import com.vantara.platform.livestockmanagement.application.queries.GetAnimalByIdQuery;
 import com.vantara.platform.livestockmanagement.application.queries.GetAllLotsQuery;
@@ -123,5 +124,13 @@ public class LivestockManagementQueryServiceImpl
         }
 
         return logs.findAll();
+    }
+
+    @Override
+    public boolean handle(ExistsAnimalByEarTagQuery query) {
+        return animals.existsByEarTagAndRancherId(
+                query.earTag(),
+                query.rancherId()
+        );
     }
 }
