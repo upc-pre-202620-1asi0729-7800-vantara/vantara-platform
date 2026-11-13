@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
  * Loads accounts by email for Spring Security.
  */
 @Service("defaultUserDetailsService")
-public class UserDetailsServiceImpl implements UserDetailsService {
+public class UserDetailsServiceImpl implements UserDetailsService, UserDetailsByIdService {
 
     private final UserRepository userRepository;
 
@@ -29,5 +29,12 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         } catch (IllegalArgumentException e) {
             throw new UsernameNotFoundException("User not found");
         }
+    }
+
+    @Override
+    public UserDetails loadUserById(Long userId) throws UsernameNotFoundException {
+        return userRepository.findById(userId)
+                .map(UserDetailsImpl::build)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
     }
 }

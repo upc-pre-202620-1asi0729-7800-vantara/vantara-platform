@@ -25,25 +25,25 @@ class TokenServiceImplTest {
     }
 
     @Test
-    void generatedTokenIsValidAndCarriesTheEmail() {
+    void generatedTokenIsValidAndCarriesTheUserId() {
         var service = serviceAt(NOW, SECRET);
 
-        var token = service.generateToken("rancher@example.com");
+        var token = service.generateToken(42L);
 
         assertTrue(service.validateToken(token));
-        assertEquals("rancher@example.com", service.getEmailFromToken(token));
+        assertEquals(42L, service.getUserIdFromToken(token));
     }
 
     @Test
     void expiredTokenIsRejected() {
-        var token = serviceAt(NOW, SECRET).generateToken("rancher@example.com");
+        var token = serviceAt(NOW, SECRET).generateToken(42L);
 
         assertFalse(serviceAt(NOW.plus(Duration.ofDays(2)), SECRET).validateToken(token));
     }
 
     @Test
     void tokenSignedWithAnotherSecretOrGarbageIsRejected() {
-        var token = serviceAt(NOW, "another-secret-another-secret-another-1234").generateToken("a@example.com");
+        var token = serviceAt(NOW, "another-secret-another-secret-another-1234").generateToken(1L);
         var service = serviceAt(NOW, SECRET);
 
         assertFalse(service.validateToken(token));

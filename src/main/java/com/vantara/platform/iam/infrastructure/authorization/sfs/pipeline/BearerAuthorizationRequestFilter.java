@@ -1,6 +1,7 @@
 package com.vantara.platform.iam.infrastructure.authorization.sfs.pipeline;
 
 import com.vantara.platform.iam.infrastructure.authorization.sfs.model.UsernamePasswordAuthenticationTokenBuilder;
+import com.vantara.platform.iam.infrastructure.authorization.sfs.services.UserDetailsByIdService;
 import com.vantara.platform.iam.infrastructure.tokens.jwt.BearerTokenService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -10,7 +11,6 @@ import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -24,9 +24,9 @@ public class BearerAuthorizationRequestFilter extends OncePerRequestFilter {
     private static final Logger LOGGER = LoggerFactory.getLogger(BearerAuthorizationRequestFilter.class);
 
     private final BearerTokenService tokenService;
-    private final UserDetailsService userDetailsService;
+    private final UserDetailsByIdService userDetailsService;
 
-    public BearerAuthorizationRequestFilter(BearerTokenService tokenService, UserDetailsService userDetailsService) {
+    public BearerAuthorizationRequestFilter(BearerTokenService tokenService, UserDetailsByIdService userDetailsService) {
         this.tokenService = tokenService;
         this.userDetailsService = userDetailsService;
     }
@@ -39,7 +39,7 @@ public class BearerAuthorizationRequestFilter extends OncePerRequestFilter {
         try {
             var token = tokenService.getBearerTokenFrom(request);
             if (token != null && tokenService.validateToken(token)) {
-                var userDetails = userDetailsService.loadUserByUsername(tokenService.getEmailFromToken(token));
+                var userDetails = userDetailsService.loadUserById(tokenService.getUserIdFromToken(token));
                 if (userDetails.isEnabled()) {
                     SecurityContextHolder.getContext().setAuthentication(
                             UsernamePasswordAuthenticationTokenBuilder.build(userDetails, request));

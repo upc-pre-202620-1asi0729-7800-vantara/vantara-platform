@@ -170,7 +170,7 @@ class UserCommandServiceImplTest {
 
         assertEquals("jwt-token", authenticated.token());
         assertEquals(NOW, authenticated.user().getLastSignInAt());
-        verify(tokenService).generateToken("rancher@example.com");
+        verify(tokenService).generateToken(7L);
     }
 
     @Test
