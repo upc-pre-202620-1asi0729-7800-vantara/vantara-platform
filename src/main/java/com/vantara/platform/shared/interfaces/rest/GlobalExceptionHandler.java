@@ -12,6 +12,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.text.MessageFormat;
@@ -71,6 +72,21 @@ public class GlobalExceptionHandler {
                 resolveMessageOrDefault("validation.request.argument", "request-argument"),
                 ex.getMessage() != null ? ex.getMessage() : resolveMessageOrDefault("validation.request.failed", "Request validation failed")
         );
+        return ErrorResponseAssembler.toErrorResponseFromApplicationError(applicationError);
+    }
+
+    /**
+     * Handles path or query values that cannot be converted to the expected type, such as a malformed
+     * UUID or an unknown enum constant.
+     *
+     * @param ex the exception raised while binding the argument
+     * @return error response with BAD_REQUEST status
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<?> handleMethodArgumentTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        var applicationError = ApplicationError.validationError(
+                ex.getName(),
+                resolveMessageOrDefault("validation.request.argument-type", "Invalid value for the request argument"));
         return ErrorResponseAssembler.toErrorResponseFromApplicationError(applicationError);
     }
 
