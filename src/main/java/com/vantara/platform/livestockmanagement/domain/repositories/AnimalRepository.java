@@ -23,5 +23,8 @@ public interface AnimalRepository {
 
     boolean existsByEarTagAndRancherId(String earTag, String rancherId);
 
-    void deleteById(String id);
+    /**
+     * Deletes the animal and publishes the events it recorded (for example its removal).
+     */
+    void delete(Animal animal);
 }

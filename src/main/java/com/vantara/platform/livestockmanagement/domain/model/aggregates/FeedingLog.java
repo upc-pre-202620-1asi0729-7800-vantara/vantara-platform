@@ -1,10 +1,13 @@
 
 package com.vantara.platform.livestockmanagement.domain.model.aggregates;
 
+import com.vantara.platform.livestockmanagement.domain.model.events.FeedingRecordedEvent;
 import com.vantara.platform.shared.domain.model.aggregates.AbstractDomainAggregateRoot;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 /**
  * Represents an immutable record of a completed feeding activity.
@@ -55,7 +58,47 @@ public final class FeedingLog extends AbstractDomainAggregateRoot<FeedingLog> {
         this.notes = notes == null ? "" : notes.trim();
     }
 
+    /**
+     * Records a completed feeding and raises {@link FeedingRecordedEvent}.
+     *
+     * @param occurredAt instant at which the feeding is recorded
+     */
     public static FeedingLog record(
+            String id,
+            String planItemId,
+            String animalId,
+            String lotId,
+            String feedName,
+            LocalDateTime feedAt,
+            BigDecimal quantity,
+            String unit,
+            String recordedBy,
+            String notes,
+            Instant occurredAt
+    ) {
+        var log = reconstitute(
+                id, planItemId, animalId, lotId, feedName,
+                feedAt, quantity, unit, recordedBy, notes
+        );
+
+        log.registerDomainEvent(new FeedingRecordedEvent(
+                log.id,
+                log.planItemId,
+                log.lotId,
+                log.animalId,
+                log.feedName,
+                log.quantity,
+                log.unit,
+                Objects.requireNonNull(occurredAt, "Occurrence instant cannot be null")
+        ));
+
+        return log;
+    }
+
+    /**
+     * Rebuilds an already recorded feeding from its stored state without raising events.
+     */
+    public static FeedingLog reconstitute(
             String id,
             String planItemId,
             String animalId,

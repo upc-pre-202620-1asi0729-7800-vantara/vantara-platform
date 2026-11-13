@@ -7,6 +7,7 @@ import com.vantara.platform.livestockmanagement.infrastructure.persistence.jpa.e
 import com.vantara.platform.livestockmanagement.infrastructure.persistence.jpa.mappers.LotMapper;
 import com.vantara.platform.livestockmanagement.infrastructure.persistence.jpa.repositories.LotJpaRepository;
 
+import com.vantara.platform.shared.infrastructure.events.DomainEventPublisher;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -16,15 +17,24 @@ import java.util.Optional;
 public class LotRepositoryAdapter implements LotRepository {
 
     private final LotJpaRepository repository;
+    private final DomainEventPublisher eventPublisher;
 
-    public LotRepositoryAdapter(LotJpaRepository repository) {
+    public LotRepositoryAdapter(
+            LotJpaRepository repository,
+            DomainEventPublisher eventPublisher
+    ) {
         this.repository = repository;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
     public Lot save(Lot lot) {
         LotJpaEntity entity = LotMapper.toEntity(lot);
-        return LotMapper.toDomain(repository.save(entity));
+        var saved = LotMapper.toDomain(repository.save(entity));
+
+        eventPublisher.publishAndClear(lot);
+
+        return saved;
     }
 
     @Override

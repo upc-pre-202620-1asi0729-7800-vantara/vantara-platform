@@ -7,6 +7,7 @@ import com.vantara.platform.livestockmanagement.infrastructure.persistence.jpa.e
 import com.vantara.platform.livestockmanagement.infrastructure.persistence.jpa.mappers.FeedingLogMapper;
 import com.vantara.platform.livestockmanagement.infrastructure.persistence.jpa.repositories.FeedingLogJpaRepository;
 
+import com.vantara.platform.shared.infrastructure.events.DomainEventPublisher;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -15,18 +16,25 @@ import java.util.List;
 public class FeedingLogRepositoryAdapter implements FeedingLogRepository {
 
     private final FeedingLogJpaRepository repository;
+    private final DomainEventPublisher eventPublisher;
 
     public FeedingLogRepositoryAdapter(
-            FeedingLogJpaRepository repository
+            FeedingLogJpaRepository repository,
+            DomainEventPublisher eventPublisher
     ) {
         this.repository = repository;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
     public FeedingLog save(FeedingLog log) {
         FeedingLogJpaEntity entity = FeedingLogMapper.toEntity(log);
 
-        return FeedingLogMapper.toDomain(repository.save(entity));
+        var saved = FeedingLogMapper.toDomain(repository.save(entity));
+
+        eventPublisher.publishAndClear(log);
+
+        return saved;
     }
 
     @Override

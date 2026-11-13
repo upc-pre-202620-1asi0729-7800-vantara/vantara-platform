@@ -68,7 +68,7 @@ public class FeedingPlanMapper {
                 ))
                 .toList();
 
-        return FeedingPlan.create(
+        return FeedingPlan.reconstitute(
                 entity.getId(),
                 entity.getLotId(),
                 entity.getAnimalId(),

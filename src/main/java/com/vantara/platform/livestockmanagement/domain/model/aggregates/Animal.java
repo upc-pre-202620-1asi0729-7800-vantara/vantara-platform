@@ -1,10 +1,15 @@
 
 package com.vantara.platform.livestockmanagement.domain.model.aggregates;
 
+import com.vantara.platform.livestockmanagement.domain.model.events.AnimalLotChangedEvent;
+import com.vantara.platform.livestockmanagement.domain.model.events.AnimalRegisteredEvent;
+import com.vantara.platform.livestockmanagement.domain.model.events.AnimalRemovedEvent;
+import com.vantara.platform.livestockmanagement.domain.model.events.AnimalWeanedEvent;
 import com.vantara.platform.livestockmanagement.domain.model.valueobjects.AnimalWeight;
 import com.vantara.platform.livestockmanagement.domain.model.valueobjects.EarTag;
 import com.vantara.platform.shared.domain.model.aggregates.AbstractDomainAggregateRoot;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Objects;
 
@@ -77,7 +82,54 @@ public final class Animal extends AbstractDomainAggregateRoot<Animal> {
         this.weanedOn = weanedOn;
     }
 
+    /**
+     * Registers a new animal and raises {@link AnimalRegisteredEvent}.
+     */
     public static Animal register(
+            String id,
+            String rancherId,
+            String lotId,
+            EarTag earTag,
+            String name,
+            String species,
+            String breed,
+            String sex,
+            LocalDate birthDate,
+            String motherId,
+            String fatherId,
+            AnimalWeight weight,
+            String status,
+            LocalDate registeredAt,
+            String photoUrl,
+            LocalDate weanedOn,
+            Instant occurredAt
+    ) {
+        var animal = reconstitute(
+                id, rancherId, lotId, earTag, name, species, breed,
+                sex, birthDate, motherId, fatherId, weight, status,
+                registeredAt, photoUrl, weanedOn
+        );
+
+        animal.registerDomainEvent(new AnimalRegisteredEvent(
+                animal.id,
+                animal.rancherId,
+                animal.lotId,
+                animal.earTag.value(),
+                animal.species,
+                animal.sex,
+                animal.motherId,
+                animal.fatherId,
+                Objects.requireNonNull(occurredAt, "Occurrence instant cannot be null")
+        ));
+
+        return animal;
+    }
+
+    /**
+     * Rebuilds an already registered animal from its stored state. Validates the
+     * state but raises no events, so loading an animal never republishes history.
+     */
+    public static Animal reconstitute(
             String id,
             String rancherId,
             String lotId,
@@ -114,7 +166,8 @@ public final class Animal extends AbstractDomainAggregateRoot<Animal> {
             AnimalWeight weight,
             String status,
             String photoUrl,
-            LocalDate weanedOn
+            LocalDate weanedOn,
+            Instant occurredAt
     ) {
         LocalDate validatedBirthDate = Objects.requireNonNull(
                 birthDate, "Birth date cannot be null"
@@ -130,25 +183,74 @@ public final class Animal extends AbstractDomainAggregateRoot<Animal> {
         validateDates(validatedBirthDate, registeredAt, weanedOn);
         validateParentIds(id, validatedMotherId, validatedFatherId);
 
-        this.lotId = requireText(lotId, "Lot id");
-        this.name = requireText(name, "Animal name");
-        this.species = requireText(species, "Species");
-        this.breed = requireText(breed, "Breed");
-        this.sex = requireText(sex, "Sex");
+        String validatedLotId = requireText(lotId, "Lot id");
+        String validatedName = requireText(name, "Animal name");
+        String validatedSpecies = requireText(species, "Species");
+        String validatedBreed = requireText(breed, "Breed");
+        String validatedSex = requireText(sex, "Sex");
+        String validatedStatus = requireText(status, "Status");
+        Instant validatedOccurredAt = Objects.requireNonNull(
+                occurredAt, "Occurrence instant cannot be null"
+        );
+
+        boolean newlyWeaned = this.weanedOn == null && weanedOn != null;
+
+        this.name = validatedName;
+        this.species = validatedSpecies;
+        this.breed = validatedBreed;
+        this.sex = validatedSex;
         this.birthDate = validatedBirthDate;
         this.motherId = validatedMotherId;
         this.fatherId = validatedFatherId;
         this.weight = validatedWeight;
-        this.status = requireText(status, "Status");
+        this.status = validatedStatus;
         this.photoUrl = optionalText(photoUrl) == null ? "" : optionalText(photoUrl);
         this.weanedOn = weanedOn;
+
+        // Events are raised only after every rule passed, so a rejected update leaves none behind.
+        changeLot(validatedLotId, validatedOccurredAt);
+
+        if (newlyWeaned) {
+            registerDomainEvent(new AnimalWeanedEvent(
+                    id, rancherId, this.motherId, weanedOn, validatedOccurredAt
+            ));
+        }
     }
 
     /**
      * Moves the animal after the movement aggregate has validated its destination.
      */
-    public void assignToLot(String lotId) {
-        this.lotId = requireText(lotId, "Lot id");
+    public void assignToLot(String lotId, Instant occurredAt) {
+        changeLot(requireText(lotId, "Lot id"), occurredAt);
+    }
+
+    /**
+     * Marks the animal as removed from the inventory and raises {@link AnimalRemovedEvent}.
+     */
+    public void remove(Instant occurredAt) {
+        registerDomainEvent(new AnimalRemovedEvent(
+                id,
+                rancherId,
+                lotId,
+                Objects.requireNonNull(occurredAt, "Occurrence instant cannot be null")
+        ));
+    }
+
+    private void changeLot(String newLotId, Instant occurredAt) {
+        if (newLotId.equals(this.lotId)) {
+            return;
+        }
+
+        var previousLotId = this.lotId;
+        this.lotId = newLotId;
+
+        registerDomainEvent(new AnimalLotChangedEvent(
+                id,
+                rancherId,
+                previousLotId,
+                newLotId,
+                Objects.requireNonNull(occurredAt, "Occurrence instant cannot be null")
+        ));
     }
 
     private static void validateDates(

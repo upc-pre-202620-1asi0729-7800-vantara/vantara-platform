@@ -1,7 +1,11 @@
 
 package com.vantara.platform.livestockmanagement.domain.model.aggregates;
 
+import com.vantara.platform.livestockmanagement.domain.model.events.LotRegisteredEvent;
 import com.vantara.platform.shared.domain.model.aggregates.AbstractDomainAggregateRoot;
+
+import java.time.Instant;
+import java.util.Objects;
 
 /**
  * A physical ranch area used to group livestock.
@@ -28,7 +32,30 @@ public final class Lot extends AbstractDomainAggregateRoot<Lot> {
         this.status = required(status, "Lot status");
     }
 
+    /**
+     * Registers a new lot and raises {@link LotRegisteredEvent}.
+     */
     public static Lot register(
+            String id,
+            String rancherId,
+            String name,
+            String purpose,
+            String status,
+            Instant occurredAt
+    ) {
+        var lot = reconstitute(id, rancherId, name, purpose, status);
+
+        lot.registerDomainEvent(new LotRegisteredEvent(
+                lot.id, lot.rancherId, lot.name, Objects.requireNonNull(occurredAt, "Occurrence instant cannot be null")
+        ));
+
+        return lot;
+    }
+
+    /**
+     * Rebuilds an already registered lot from its stored state without raising events.
+     */
+    public static Lot reconstitute(
             String id,
             String rancherId,
             String name,

@@ -20,7 +20,7 @@ public class LotMapper {
     }
 
     public static Lot toDomain(LotJpaEntity entity) {
-        return Lot.register(
+        return Lot.reconstitute(
                 entity.getId(),
                 entity.getRancherId(),
                 entity.getName(),

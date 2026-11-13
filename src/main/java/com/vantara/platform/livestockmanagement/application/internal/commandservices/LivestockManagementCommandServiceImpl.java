@@ -13,6 +13,7 @@ import com.vantara.platform.shared.application.result.Result;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.util.UUID;
 
 @Service
@@ -25,19 +26,22 @@ public class LivestockManagementCommandServiceImpl
     private final MovementRepository movements;
     private final FeedingPlanRepository plans;
     private final FeedingLogRepository feedingLogs;
+    private final Clock clock;
 
     public LivestockManagementCommandServiceImpl(
             AnimalRepository animals,
             LotRepository lots,
             MovementRepository movements,
             FeedingPlanRepository plans,
-            FeedingLogRepository feedingLogs
+            FeedingLogRepository feedingLogs,
+            Clock clock
     ) {
         this.animals = animals;
         this.lots = lots;
         this.movements = movements;
         this.plans = plans;
         this.feedingLogs = feedingLogs;
+        this.clock = clock;
     }
 
 
@@ -80,7 +84,8 @@ public class LivestockManagementCommandServiceImpl
                 command.status(),
                 command.registeredAt(),
                 command.photoUrl(),
-                command.weanedOn()
+                command.weanedOn(),
+                clock.instant()
         );
 
         return Result.success(animals.save(animal));
@@ -124,7 +129,8 @@ public class LivestockManagementCommandServiceImpl
                 new AnimalWeight(command.weight()),
                 command.status(),
                 command.photoUrl(),
-                command.weanedOn()
+                command.weanedOn(),
+                clock.instant()
         );
 
         return Result.success(animals.save(animal));
@@ -133,7 +139,9 @@ public class LivestockManagementCommandServiceImpl
     public Result<Boolean, LivestockManagementCommandFailure> handle(
             DeleteAnimalCommand command
     ) {
-        if (animals.findById(command.id()).isEmpty()) {
+        var found = animals.findById(command.id());
+
+        if (found.isEmpty()) {
             return Result.failure(
                     new LivestockManagementCommandFailure.AnimalNotFound(
                             command.id()
@@ -141,7 +149,10 @@ public class LivestockManagementCommandServiceImpl
             );
         }
 
-        animals.deleteById(command.id());
+        var animal = found.orElseThrow();
+
+        animal.remove(clock.instant());
+        animals.delete(animal);
 
         return Result.success(Boolean.TRUE);
     }
@@ -156,7 +167,8 @@ public class LivestockManagementCommandServiceImpl
                 command.rancherId(),
                 command.name(),
                 command.purpose(),
-                command.status()
+                command.status(),
+                clock.instant()
         );
 
         return Result.success(lots.save(lot));
@@ -206,10 +218,11 @@ public class LivestockManagementCommandServiceImpl
                 command.movementType(),
                 command.occurredAt(),
                 command.reason(),
-                command.recordedBy()
+                command.recordedBy(),
+                clock.instant()
         );
 
-        animal.assignToLot(command.destinationLotId());
+        animal.assignToLot(command.destinationLotId(), clock.instant());
         animals.save(animal);
 
         return Result.success(movements.save(movement));
@@ -284,7 +297,8 @@ public class LivestockManagementCommandServiceImpl
                 schedules,
                 command.instructions(),
                 command.status(),
-                items
+                items,
+                clock.instant()
         );
 
         return Result.success(plans.save(plan));
@@ -362,7 +376,8 @@ public class LivestockManagementCommandServiceImpl
                 command.quantity(),
                 item.getUnit(),
                 command.recordedBy(),
-                command.notes()
+                command.notes(),
+                clock.instant()
         );
 
         return Result.success(feedingLogs.save(log));

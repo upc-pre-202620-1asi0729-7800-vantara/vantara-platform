@@ -7,6 +7,7 @@ import com.vantara.platform.livestockmanagement.infrastructure.persistence.jpa.e
 import com.vantara.platform.livestockmanagement.infrastructure.persistence.jpa.mappers.AnimalMapper;
 import com.vantara.platform.livestockmanagement.infrastructure.persistence.jpa.repositories.AnimalJpaRepository;
 
+import com.vantara.platform.shared.infrastructure.events.DomainEventPublisher;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -16,15 +17,25 @@ import java.util.Optional;
 public class AnimalRepositoryAdapter implements AnimalRepository {
 
     private final AnimalJpaRepository repository;
+    private final DomainEventPublisher eventPublisher;
 
-    public AnimalRepositoryAdapter(AnimalJpaRepository repository) {
+    public AnimalRepositoryAdapter(
+            AnimalJpaRepository repository,
+            DomainEventPublisher eventPublisher
+    ) {
         this.repository = repository;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
     public Animal save(Animal animal) {
         AnimalJpaEntity entity = AnimalMapper.toEntity(animal);
-        return AnimalMapper.toDomain(repository.save(entity));
+        var saved = AnimalMapper.toDomain(repository.save(entity));
+
+        // Events recorded on the original aggregate are published once the state is stored.
+        eventPublisher.publishAndClear(animal);
+
+        return saved;
     }
 
     @Override
@@ -38,8 +49,7 @@ public class AnimalRepositoryAdapter implements AnimalRepository {
             String id,
             String rancherId
     ) {
-        return repository.findById(id)
-                .filter(animal -> animal.getRancherId().equals(rancherId))
+        return repository.findByIdAndRancherId(id, rancherId)
                 .map(AnimalMapper::toDomain);
     }
 
@@ -53,9 +63,8 @@ public class AnimalRepositoryAdapter implements AnimalRepository {
 
     @Override
     public List<Animal> findAllByRancherId(String rancherId) {
-        return repository.findAll()
+        return repository.findAllByRancherId(rancherId)
                 .stream()
-                .filter(animal -> animal.getRancherId().equals(rancherId))
                 .map(AnimalMapper::toDomain)
                 .toList();
     }
@@ -72,7 +81,10 @@ public class AnimalRepositoryAdapter implements AnimalRepository {
     }
 
     @Override
-    public void deleteById(String id) {
-        repository.deleteById(id);
+    public void delete(Animal animal) {
+        repository.deleteById(animal.getId());
+
+        // The removal event is published only after the row is gone.
+        eventPublisher.publishAndClear(animal);
     }
 }

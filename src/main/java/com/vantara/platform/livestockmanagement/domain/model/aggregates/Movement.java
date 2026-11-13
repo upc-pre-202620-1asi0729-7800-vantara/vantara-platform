@@ -1,8 +1,10 @@
 
 package com.vantara.platform.livestockmanagement.domain.model.aggregates;
 
+import com.vantara.platform.livestockmanagement.domain.model.events.MovementRecordedEvent;
 import com.vantara.platform.shared.domain.model.aggregates.AbstractDomainAggregateRoot;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Objects;
 
@@ -48,7 +50,43 @@ public final class Movement extends AbstractDomainAggregateRoot<Movement> {
         }
     }
 
+    /**
+     * Records a new movement and raises {@link MovementRecordedEvent}.
+     *
+     * @param recordedAt instant at which the movement is recorded
+     */
     public static Movement record(
+            String id,
+            String animalId,
+            String originLotId,
+            String destinationLotId,
+            String movementType,
+            LocalDateTime occurredAt,
+            String reason,
+            String recordedBy,
+            Instant recordedAt
+    ) {
+        var movement = reconstitute(
+                id, animalId, originLotId, destinationLotId,
+                movementType, occurredAt, reason, recordedBy
+        );
+
+        movement.registerDomainEvent(new MovementRecordedEvent(
+                movement.id,
+                movement.animalId,
+                movement.originLotId,
+                movement.destinationLotId,
+                movement.movementType,
+                Objects.requireNonNull(recordedAt, "Recorded instant cannot be null")
+        ));
+
+        return movement;
+    }
+
+    /**
+     * Rebuilds an already recorded movement from its stored state without raising events.
+     */
+    public static Movement reconstitute(
             String id,
             String animalId,
             String originLotId,

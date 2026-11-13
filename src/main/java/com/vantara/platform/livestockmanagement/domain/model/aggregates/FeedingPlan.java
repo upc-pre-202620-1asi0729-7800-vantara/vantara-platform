@@ -2,9 +2,11 @@
 package com.vantara.platform.livestockmanagement.domain.model.aggregates;
 
 import com.vantara.platform.livestockmanagement.domain.model.entities.FeedingPlanItem;
+import com.vantara.platform.livestockmanagement.domain.model.events.FeedingPlanCreatedEvent;
 import com.vantara.platform.shared.domain.model.aggregates.AbstractDomainAggregateRoot;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
@@ -100,7 +102,50 @@ public final class FeedingPlan extends AbstractDomainAggregateRoot<FeedingPlan> 
         }
     }
 
+    /**
+     * Creates a new feeding plan and raises {@link FeedingPlanCreatedEvent}.
+     */
     public static FeedingPlan create(
+            String id,
+            String lotId,
+            String animalId,
+            String name,
+            LocalDate startsOn,
+            LocalDate endsOn,
+            String objective,
+            BigDecimal currentAverageWeight,
+            BigDecimal targetWeight,
+            String frequency,
+            List<String> daysOfWeek,
+            List<Schedule> schedules,
+            String instructions,
+            String status,
+            List<FeedingPlanItem> items,
+            Instant occurredAt
+    ) {
+        var plan = reconstitute(
+                id, lotId, animalId, name, startsOn, endsOn,
+                objective, currentAverageWeight, targetWeight,
+                frequency, daysOfWeek, schedules, instructions,
+                status, items
+        );
+
+        plan.registerDomainEvent(new FeedingPlanCreatedEvent(
+                plan.id,
+                plan.lotId,
+                plan.animalId,
+                plan.startsOn,
+                plan.endsOn,
+                Objects.requireNonNull(occurredAt, "Occurrence instant cannot be null")
+        ));
+
+        return plan;
+    }
+
+    /**
+     * Rebuilds an already created feeding plan from its stored state without raising events.
+     */
+    public static FeedingPlan reconstitute(
             String id,
             String lotId,
             String animalId,

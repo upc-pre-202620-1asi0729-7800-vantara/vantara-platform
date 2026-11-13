@@ -6,6 +6,7 @@ import com.vantara.platform.livestockmanagement.domain.repositories.MovementRepo
 import com.vantara.platform.livestockmanagement.infrastructure.persistence.jpa.entities.MovementJpaEntity;
 import com.vantara.platform.livestockmanagement.infrastructure.persistence.jpa.mappers.MovementMapper;
 import com.vantara.platform.livestockmanagement.infrastructure.persistence.jpa.repositories.MovementJpaRepository;
+import com.vantara.platform.shared.infrastructure.events.DomainEventPublisher;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -14,17 +15,25 @@ import java.util.List;
 public class MovementRepositoryAdapter implements MovementRepository {
 
     private final MovementJpaRepository repository;
+    private final DomainEventPublisher eventPublisher;
 
-    public MovementRepositoryAdapter(MovementJpaRepository repository) {
+    public MovementRepositoryAdapter(
+            MovementJpaRepository repository,
+            DomainEventPublisher eventPublisher
+    ) {
         this.repository = repository;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
     public Movement save(Movement movement) {
         MovementJpaEntity entity = MovementMapper.toEntity(movement);
         MovementJpaEntity savedEntity = repository.save(entity);
+        var saved = MovementMapper.toDomain(savedEntity);
 
-        return MovementMapper.toDomain(savedEntity);
+        eventPublisher.publishAndClear(movement);
+
+        return saved;
     }
 
     @Override

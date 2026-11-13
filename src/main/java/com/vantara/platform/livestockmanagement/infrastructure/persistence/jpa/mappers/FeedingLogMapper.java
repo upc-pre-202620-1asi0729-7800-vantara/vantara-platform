@@ -25,7 +25,7 @@ public class FeedingLogMapper {
     }
 
     public static FeedingLog toDomain(FeedingLogJpaEntity entity) {
-        return FeedingLog.record(
+        return FeedingLog.reconstitute(
                 entity.getId(),
                 entity.getPlanItemId(),
                 entity.getAnimalId(),

@@ -23,7 +23,7 @@ public class MovementMapper {
     }
 
     public static Movement toDomain(MovementJpaEntity entity) {
-        return Movement.record(
+        return Movement.reconstitute(
                 entity.getId(),
                 entity.getAnimalId(),
                 entity.getOriginLotId(),

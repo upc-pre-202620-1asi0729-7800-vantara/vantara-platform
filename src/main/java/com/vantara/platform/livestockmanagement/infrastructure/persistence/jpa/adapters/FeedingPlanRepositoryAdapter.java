@@ -7,6 +7,7 @@ import com.vantara.platform.livestockmanagement.infrastructure.persistence.jpa.e
 import com.vantara.platform.livestockmanagement.infrastructure.persistence.jpa.mappers.FeedingPlanMapper;
 import com.vantara.platform.livestockmanagement.infrastructure.persistence.jpa.repositories.FeedingPlanJpaRepository;
 
+import com.vantara.platform.shared.infrastructure.events.DomainEventPublisher;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -16,11 +17,14 @@ import java.util.Optional;
 public class FeedingPlanRepositoryAdapter implements FeedingPlanRepository {
 
     private final FeedingPlanJpaRepository repository;
+    private final DomainEventPublisher eventPublisher;
 
     public FeedingPlanRepositoryAdapter(
-            FeedingPlanJpaRepository repository
+            FeedingPlanJpaRepository repository,
+            DomainEventPublisher eventPublisher
     ) {
         this.repository = repository;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -28,8 +32,11 @@ public class FeedingPlanRepositoryAdapter implements FeedingPlanRepository {
         FeedingPlanJpaEntity entity = FeedingPlanMapper.toEntity(plan);
 
         FeedingPlanJpaEntity savedEntity = repository.save(entity);
+        var saved = FeedingPlanMapper.toDomain(savedEntity);
 
-        return FeedingPlanMapper.toDomain(savedEntity);
+        eventPublisher.publishAndClear(plan);
+
+        return saved;
     }
 
     @Override

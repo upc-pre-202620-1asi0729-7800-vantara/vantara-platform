@@ -33,7 +33,7 @@ public class AnimalMapper {
     }
 
     public static Animal toDomain(AnimalJpaEntity entity) {
-        return Animal.register(
+        return Animal.reconstitute(
                 entity.getId(),
                 entity.getRancherId(),
                 entity.getLotId(),
