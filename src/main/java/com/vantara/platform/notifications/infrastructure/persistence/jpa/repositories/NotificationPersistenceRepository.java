@@ -1,7 +1,7 @@
 package com.vantara.platform.notifications.infrastructure.persistence.jpa.repositories;
 
-import com.vantara.platform.notifications.infrastructure.persistence.jpa.entities.NotificationJpaEntity;
 import com.vantara.platform.notifications.domain.model.valueobjects.NotificationType;
+import com.vantara.platform.notifications.infrastructure.persistence.jpa.entities.NotificationPersistenceEntity;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -12,15 +12,16 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface NotificationJpaRepository extends JpaRepository<NotificationJpaEntity, UUID> {
-    Optional<NotificationJpaEntity> findByIdAndRecipientUserId(UUID id, long recipient);
+public interface NotificationPersistenceRepository extends JpaRepository<NotificationPersistenceEntity, UUID> {
+    Optional<NotificationPersistenceEntity> findByIdAndRecipientUserId(UUID id, long recipient);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select n from NotificationJpaEntity n where n.id = :id and n.recipientUserId = :recipient")
-    Optional<NotificationJpaEntity> lockForReadUpdate(@Param("id") UUID id, @Param("recipient") long recipient);
+    @Query("select n from NotificationPersistenceEntity n where n.id = :id and n.recipientUserId = :recipient")
+    Optional<NotificationPersistenceEntity> findForUpdateByIdAndRecipientUserId(
+            @Param("id") UUID id, @Param("recipient") long recipient);
 
     @Query("""
-            select n from NotificationJpaEntity n
+            select n from NotificationPersistenceEntity n
             where n.recipientUserId = :recipient and (:type is null or n.type = :type)
               and (:status is null
                    or (:status = 'READ' and n.readAt is not null)
@@ -28,7 +29,7 @@ public interface NotificationJpaRepository extends JpaRepository<NotificationJpa
                    or (:status = 'SCHEDULED' and n.sentAt is null))
             order by n.createdAt desc, n.id desc
             """)
-    List<NotificationJpaEntity> findForRecipient(@Param("recipient") long recipient,
-                                                  @Param("type") NotificationType type,
-                                                  @Param("status") String status);
+    List<NotificationPersistenceEntity> findForRecipient(@Param("recipient") long recipient,
+                                                         @Param("type") NotificationType type,
+                                                         @Param("status") String status);
 }

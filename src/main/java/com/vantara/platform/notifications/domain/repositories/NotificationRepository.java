@@ -1,25 +1,31 @@
 package com.vantara.platform.notifications.domain.repositories;
 
 import com.vantara.platform.notifications.domain.model.aggregates.Notification;
+import com.vantara.platform.notifications.domain.model.valueobjects.NotificationId;
 import com.vantara.platform.notifications.domain.model.valueobjects.NotificationStatus;
 import com.vantara.platform.notifications.domain.model.valueobjects.NotificationType;
 import com.vantara.platform.notifications.domain.model.valueobjects.RecipientId;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
+/**
+ * Port that stores {@link Notification} aggregates. Every lookup is scoped to the recipient, so a
+ * notification of another user is never found.
+ */
 public interface NotificationRepository {
-    Notification add(Notification notification);
+    /**
+     * Stores the notification and publishes the domain events it recorded.
+     */
+    Notification save(Notification notification);
 
     List<Notification> findAll(RecipientId recipient, NotificationType type, NotificationStatus status);
 
-    Optional<Notification> findById(UUID id, RecipientId recipient);
+    Optional<Notification> findById(NotificationId id, RecipientId recipient);
 
     /**
-     * Records the first read time for a sent notification belonging to the recipient.
-     * Concurrent requests must preserve the first stored timestamp.
+     * Finds the notification holding a write lock until the surrounding transaction ends, so that
+     * concurrent requests read it one after another and keep the first stored read time.
      */
-    Optional<Notification> markAsRead(UUID id, RecipientId recipient, Instant readAt);
+    Optional<Notification> findByIdForUpdate(NotificationId id, RecipientId recipient);
 }

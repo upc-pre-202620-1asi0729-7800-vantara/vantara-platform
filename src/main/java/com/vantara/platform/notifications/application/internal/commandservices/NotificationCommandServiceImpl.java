@@ -3,6 +3,7 @@ package com.vantara.platform.notifications.application.internal.commandservices;
 import com.vantara.platform.notifications.application.commands.*;
 import com.vantara.platform.notifications.application.commandservices.NotificationCommandService;
 import com.vantara.platform.notifications.domain.model.aggregates.Notification;
+import com.vantara.platform.notifications.domain.model.valueobjects.NotificationId;
 import com.vantara.platform.notifications.domain.repositories.NotificationRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,12 +24,16 @@ public class NotificationCommandServiceImpl implements NotificationCommandServic
 
     @Override
     public Notification handle(CreateNotificationCommand command) {
-        return repository.add(Notification.create(command.recipient(), command.type(),
+        return repository.save(Notification.create(command.recipient(), command.type(),
                 command.content(), command.relatedEntity(), clock.instant(), null));
     }
 
     @Override
     public Optional<Notification> handle(MarkNotificationAsReadCommand command) {
-        return repository.markAsRead(command.id(), command.recipient(), clock.instant());
+        return repository.findByIdForUpdate(new NotificationId(command.id()), command.recipient())
+                .map(notification -> {
+                    notification.markAsRead(clock.instant());
+                    return repository.save(notification);
+                });
     }
 }

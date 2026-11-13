@@ -4,6 +4,7 @@ import com.vantara.platform.iam.interfaces.acl.IamContextFacade;
 import com.vantara.platform.notifications.application.internal.commandservices.NotificationCommandServiceImpl;
 import com.vantara.platform.notifications.application.internal.queryservices.NotificationQueryServiceImpl;
 import com.vantara.platform.notifications.domain.model.aggregates.Notification;
+import com.vantara.platform.notifications.domain.model.valueobjects.NotificationId;
 import com.vantara.platform.notifications.domain.model.valueobjects.NotificationStatus;
 import com.vantara.platform.notifications.domain.model.valueobjects.NotificationType;
 import com.vantara.platform.notifications.domain.model.valueobjects.RecipientId;
@@ -88,15 +89,16 @@ class NotificationsControllerTest {
     @Test
     void unknownOrForeignNotificationReturnsNotFound() throws Exception {
         var id = UUID.randomUUID();
-        when(repository.markAsRead(id, OWNER, NOW)).thenReturn(Optional.empty());
+        when(repository.findByIdForUpdate(new NotificationId(id), OWNER)).thenReturn(Optional.empty());
         mvc.perform(patch(PATH + "/{id}", id).principal(as(EMAIL)))
                 .andExpect(status().isNotFound());
-        verify(repository).markAsRead(id, OWNER, NOW);
+        verify(repository).findByIdForUpdate(new NotificationId(id), OWNER);
+        verify(repository, never()).save(any());
     }
 
     @Test
     void createsAnUnreadNotificationForTheAuthenticatedUser() throws Exception {
-        when(repository.add(any(Notification.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(repository.save(any(Notification.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         mvc.perform(post(PATH).principal(as(EMAIL))
                         .contentType(MediaType.APPLICATION_JSON).content(CREATE_JSON))
@@ -107,19 +109,19 @@ class NotificationsControllerTest {
                 .andExpect(jsonPath("$.channel").value("in_app"))
                 .andExpect(jsonPath("$.status").value("unread"))
                 .andExpect(jsonPath("$.readAt").isEmpty());
-        verify(repository).add(argThat(notification -> notification.recipient().equals(OWNER)
-                && NOW.equals(notification.sentAt())));
+        verify(repository).save(argThat(notification -> notification.getRecipient().equals(OWNER)
+                && NOW.equals(notification.getSentAt())));
     }
 
     @Test
     void ignoresARecipientSuppliedByTheClient() throws Exception {
-        when(repository.add(any(Notification.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(repository.save(any(Notification.class))).thenAnswer(invocation -> invocation.getArgument(0));
         var payload = CREATE_JSON.replace("{", "{\"recipientUserId\":\"99\",");
         mvc.perform(post(PATH).principal(as(EMAIL))
                         .contentType(MediaType.APPLICATION_JSON).content(payload))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.recipientUserId").value("7"));
-        verify(repository).add(argThat(notification -> notification.recipient().equals(OWNER)));
+        verify(repository).save(argThat(notification -> notification.getRecipient().equals(OWNER)));
     }
 
     @Test
@@ -163,9 +165,9 @@ class NotificationsControllerTest {
     @Test
     void lookupReturnsNotFoundForAnAbsentOrForeignNotification() throws Exception {
         var id = UUID.randomUUID();
-        when(repository.findById(id, OWNER)).thenReturn(Optional.empty());
+        when(repository.findById(new NotificationId(id), OWNER)).thenReturn(Optional.empty());
         mvc.perform(get(PATH + "/{id}", id).principal(as(EMAIL)))
                 .andExpect(status().isNotFound());
-        verify(repository).findById(id, OWNER);
+        verify(repository).findById(new NotificationId(id), OWNER);
     }
 }

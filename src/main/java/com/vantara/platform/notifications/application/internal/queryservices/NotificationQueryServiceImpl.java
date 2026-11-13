@@ -3,6 +3,7 @@ package com.vantara.platform.notifications.application.internal.queryservices;
 import com.vantara.platform.notifications.application.queries.*;
 import com.vantara.platform.notifications.application.queryservices.NotificationQueryService;
 import com.vantara.platform.notifications.domain.model.aggregates.Notification;
+import com.vantara.platform.notifications.domain.model.valueobjects.NotificationId;
 import com.vantara.platform.notifications.domain.repositories.NotificationRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +27,6 @@ public class NotificationQueryServiceImpl implements NotificationQueryService {
 
     @Override
     public Optional<Notification> handle(FindNotificationByIdQuery query) {
-        return repository.findById(query.id(), query.recipient());
+        return repository.findById(new NotificationId(query.id()), query.recipient());
     }
 }

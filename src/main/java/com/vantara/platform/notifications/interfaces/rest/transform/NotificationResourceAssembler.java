@@ -10,11 +10,12 @@ public final class NotificationResourceAssembler {
     }
 
     public static NotificationResource fromDomain(Notification notification) {
-        return new NotificationResource(notification.id().toString(),
-                Long.toString(notification.recipient().value()), notification.type(),
-                notification.content().title(), notification.content().description(), "in_app",
-                notification.status().name().toLowerCase(Locale.ROOT),
-                notification.scheduledAt(), notification.sentAt(), notification.readAt(),
-                notification.relatedEntity().type(), notification.relatedEntity().id(), notification.createdAt());
+        return new NotificationResource(notification.getId().value().toString(),
+                Long.toString(notification.getRecipient().value()), notification.getType(),
+                notification.getContent().title(), notification.getContent().description(), "in_app",
+                notification.getStatus().name().toLowerCase(Locale.ROOT),
+                notification.getScheduledAt(), notification.getSentAt(), notification.getReadAt(),
+                notification.getRelatedEntity().type(), notification.getRelatedEntity().id(),
+                notification.getCreatedAt());
     }
 }

@@ -53,7 +53,7 @@ public class NotificationsController {
                 new NotificationContent(request.title(), request.description()),
                 new RelatedEntity(request.relatedEntityType(), request.relatedEntityId())));
         var location = ServletUriComponentsBuilder.fromCurrentRequestUri().path("/{id}")
-                .buildAndExpand(notification.id()).toUri();
+                .buildAndExpand(notification.getId().value()).toUri();
         return ResponseEntity.created(location).body(NotificationResourceAssembler.fromDomain(notification));
     }
 

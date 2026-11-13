@@ -2,8 +2,9 @@ package com.vantara.platform.notifications.infrastructure.persistence.jpa.adapte
 
 import com.vantara.platform.notifications.domain.model.aggregates.Notification;
 import com.vantara.platform.notifications.domain.model.valueobjects.*;
-import com.vantara.platform.notifications.infrastructure.persistence.jpa.entities.NotificationJpaEntity;
-import com.vantara.platform.notifications.infrastructure.persistence.jpa.repositories.NotificationJpaRepository;
+import com.vantara.platform.notifications.infrastructure.persistence.jpa.entities.NotificationPersistenceEntity;
+import com.vantara.platform.notifications.infrastructure.persistence.jpa.repositories.NotificationPersistenceRepository;
+import com.vantara.platform.shared.infrastructure.events.DomainEventPublisher;
 import com.vantara.platform.shared.infrastructure.persistence.jpa.configuration.strategy.SnakeCaseWithPluralizedTablePhysicalNamingStrategy;
 import org.hibernate.boot.MetadataSources;
 import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
@@ -55,24 +56,24 @@ class NotificationMySqlPersistenceTest {
                 .applySetting("hibernate.physical_naming_strategy",
                         SnakeCaseWithPluralizedTablePhysicalNamingStrategy.class.getName())
                 .build();
-        try (var factory = new MetadataSources(registry).addAnnotatedClass(NotificationJpaEntity.class)
+        try (var factory = new MetadataSources(registry).addAnnotatedClass(NotificationPersistenceEntity.class)
                 .buildMetadata().buildSessionFactory()) {
             var entityManager = SharedEntityManagerCreator.createSharedEntityManager(factory);
-            var jpa = new JpaRepositoryFactory(entityManager).getRepository(NotificationJpaRepository.class);
-            var adapter = new NotificationRepositoryAdapter(jpa);
+            var jpa = new JpaRepositoryFactory(entityManager).getRepository(NotificationPersistenceRepository.class);
+            var adapter = new NotificationRepositoryImpl(jpa, new DomainEventPublisher(event -> { }));
             var transaction = new TransactionTemplate(new JpaTransactionManager(factory));
             var saved = transaction.execute(status -> {
-                adapter.add(create(other));
-                return adapter.add(create(owner));
+                adapter.save(create(other));
+                return adapter.save(create(owner));
             });
 
             transaction.executeWithoutResult(status -> {
-                assertEquals(List.of(saved.id()), adapter.findAll(owner, NotificationType.HEALTH_ALERT,
-                        NotificationStatus.UNREAD).stream().map(Notification::id).toList());
+                assertEquals(List.of(saved.getId()), adapter.findAll(owner, NotificationType.HEALTH_ALERT,
+                        NotificationStatus.UNREAD).stream().map(Notification::getId).toList());
                 assertTrue(adapter.findAll(owner, NotificationType.VACCINE_REMINDER, null).isEmpty());
                 assertTrue(adapter.findAll(owner, null, NotificationStatus.READ).isEmpty());
-                assertTrue(adapter.findById(saved.id(), other).isEmpty());
-                assertTrue(adapter.markAsRead(saved.id(), other, NOW.plusSeconds(1)).isEmpty());
+                assertTrue(adapter.findById(saved.getId(), other).isEmpty());
+                assertTrue(adapter.findByIdForUpdate(saved.getId(), other).isEmpty());
             });
 
             Instant firstRead = NOW.plusSeconds(1);
@@ -81,7 +82,7 @@ class NotificationMySqlPersistenceTest {
             var secondStarted = new CountDownLatch(1);
             try (var executor = Executors.newFixedThreadPool(2)) {
                 var first = executor.submit(() -> transaction.execute(status -> {
-                    var readAt = adapter.markAsRead(saved.id(), owner, firstRead).orElseThrow().readAt();
+                    var readAt = markAsRead(adapter, saved, owner, firstRead);
                     locked.countDown();
                     await(releaseLock);
                     return readAt;
@@ -90,8 +91,7 @@ class NotificationMySqlPersistenceTest {
                     await(locked);
                     var second = executor.submit(() -> transaction.execute(status -> {
                         secondStarted.countDown();
-                        return adapter.markAsRead(saved.id(), owner, firstRead.plusSeconds(1))
-                                .orElseThrow().readAt();
+                        return markAsRead(adapter, saved, owner, firstRead.plusSeconds(1));
                     }));
                     await(secondStarted);
                     assertThrows(TimeoutException.class, () -> second.get(300, TimeUnit.MILLISECONDS));
@@ -103,10 +103,17 @@ class NotificationMySqlPersistenceTest {
                 }
             }
             transaction.executeWithoutResult(status -> assertEquals(firstRead,
-                    adapter.findById(saved.id(), owner).orElseThrow().readAt()));
+                    adapter.findById(saved.getId(), owner).orElseThrow().getReadAt()));
         } finally {
             StandardServiceRegistryBuilder.destroy(registry);
         }
+    }
+
+    private static Instant markAsRead(NotificationRepositoryImpl adapter, Notification saved,
+                                      RecipientId recipient, Instant now) {
+        var notification = adapter.findByIdForUpdate(saved.getId(), recipient).orElseThrow();
+        notification.markAsRead(now);
+        return adapter.save(notification).getReadAt();
     }
 
     private Notification create(RecipientId recipient) {
