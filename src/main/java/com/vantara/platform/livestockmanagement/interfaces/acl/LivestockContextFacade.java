@@ -31,11 +31,15 @@ public interface LivestockContextFacade {
     boolean isReproductiveFemale(String animalId);
 
     /**
-     * @param rancherId rancher whose inventory is checked
-     * @param earTag    ear tag to look up
-     * @return {@code true} when that rancher already has an animal with the ear tag
+     * Checks an ear tag against the inventory of the rancher that owns the given animal, so the
+     * caller does not need to know the rancher.
+     *
+     * @param animalId identifier of an animal of the rancher (for example the mother of a calf)
+     * @param earTag   ear tag to look up
+     * @return {@code true} when that rancher already has an animal with the ear tag; {@code false}
+     *         when it does not, or when the animal does not exist
      */
-    boolean existsAnimalByEarTag(String rancherId, String earTag);
+    boolean existsEarTagInRancherOf(String animalId, String earTag);
 
     /**
      * Registers a calf born to an animal. The calf inherits rancher, lot, species and breed from

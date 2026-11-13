@@ -55,11 +55,15 @@ public class LivestockContextFacadeImpl implements LivestockContextFacade {
     }
 
     @Override
-    public boolean existsAnimalByEarTag(String rancherId, String earTag) {
-        if (isBlank(rancherId) || isBlank(earTag)) {
+    public boolean existsEarTagInRancherOf(String animalId, String earTag) {
+        if (isBlank(earTag)) {
             return false;
         }
-        return queryService.handle(new ExistsAnimalByEarTagQuery(rancherId, earTag));
+        return findAnimal(animalId)
+                .map(animal -> queryService.handle(
+                        new ExistsAnimalByEarTagQuery(animal.getRancherId(), earTag)
+                ))
+                .orElse(false);
     }
 
     @Override
