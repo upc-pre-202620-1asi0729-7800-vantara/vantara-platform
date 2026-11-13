@@ -5,11 +5,11 @@ import com.vantara.platform.notifications.interfaces.rest.resources.Notification
 
 import java.util.Locale;
 
-public final class NotificationResourceAssembler {
-    private NotificationResourceAssembler() {
+public final class NotificationResourceFromEntityAssembler {
+    private NotificationResourceFromEntityAssembler() {
     }
 
-    public static NotificationResource fromDomain(Notification notification) {
+    public static NotificationResource toResourceFromEntity(Notification notification) {
         return new NotificationResource(notification.getId().value().toString(),
                 Long.toString(notification.getRecipient().value()), notification.getType(),
                 notification.getContent().title(), notification.getContent().description(), "in_app",

@@ -4,10 +4,12 @@ import com.vantara.platform.iam.interfaces.acl.IamContextFacade;
 import com.vantara.platform.notifications.application.internal.commandservices.NotificationCommandServiceImpl;
 import com.vantara.platform.notifications.application.internal.queryservices.NotificationQueryServiceImpl;
 import com.vantara.platform.notifications.domain.model.aggregates.Notification;
+import com.vantara.platform.notifications.domain.model.valueobjects.NotificationContent;
 import com.vantara.platform.notifications.domain.model.valueobjects.NotificationId;
 import com.vantara.platform.notifications.domain.model.valueobjects.NotificationStatus;
 import com.vantara.platform.notifications.domain.model.valueobjects.NotificationType;
 import com.vantara.platform.notifications.domain.model.valueobjects.RecipientId;
+import com.vantara.platform.notifications.domain.model.valueobjects.RelatedEntity;
 import com.vantara.platform.shared.interfaces.rest.GlobalExceptionHandler;
 import org.springframework.http.MediaType;
 import com.vantara.platform.notifications.domain.repositories.NotificationRepository;
@@ -91,7 +93,8 @@ class NotificationsControllerTest {
         var id = UUID.randomUUID();
         when(repository.findByIdForUpdate(new NotificationId(id), OWNER)).thenReturn(Optional.empty());
         mvc.perform(patch(PATH + "/{id}", id).principal(as(EMAIL)))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("NOTIFICATION_NOT_FOUND"));
         verify(repository).findByIdForUpdate(new NotificationId(id), OWNER);
         verify(repository, never()).save(any());
     }
@@ -154,7 +157,8 @@ class NotificationsControllerTest {
     @Test
     void rejectsInvalidFiltersAndIdentifiers() throws Exception {
         mvc.perform(get(PATH).principal(as(EMAIL)).param("status", "other"))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
         mvc.perform(get(PATH).principal(as(EMAIL)).param("type", "other"))
                 .andExpect(status().isBadRequest());
         mvc.perform(get(PATH + "/{id}", "invalid").principal(as(EMAIL)))
@@ -163,11 +167,39 @@ class NotificationsControllerTest {
     }
 
     @Test
+    void marksTheNotificationAsReadAndKeepsTheFirstReadTime() throws Exception {
+        var notification = Notification.create(OWNER, NotificationType.HEALTH_ALERT,
+                new NotificationContent("Title", "Description"), new RelatedEntity("Animal", "A1"),
+                NOW.minusSeconds(60), null);
+        when(repository.findByIdForUpdate(notification.getId(), OWNER)).thenReturn(Optional.of(notification));
+        when(repository.save(any(Notification.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        mvc.perform(patch(PATH + "/{id}", notification.getId().value()).principal(as(EMAIL)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("read"))
+                .andExpect(jsonPath("$.readAt").value(NOW.toString()));
+    }
+
+    @Test
+    void aScheduledNotificationCannotBeReadYet() throws Exception {
+        var notification = Notification.create(OWNER, NotificationType.VACCINE_REMINDER,
+                new NotificationContent("Title", "Description"), new RelatedEntity("Animal", "A1"),
+                NOW, NOW.plusSeconds(3600));
+        when(repository.findByIdForUpdate(notification.getId(), OWNER)).thenReturn(Optional.of(notification));
+
+        mvc.perform(patch(PATH + "/{id}", notification.getId().value()).principal(as(EMAIL)))
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.code").value("BUSINESS_RULE_VIOLATION"));
+        verify(repository, never()).save(any());
+    }
+
+    @Test
     void lookupReturnsNotFoundForAnAbsentOrForeignNotification() throws Exception {
         var id = UUID.randomUUID();
         when(repository.findById(new NotificationId(id), OWNER)).thenReturn(Optional.empty());
         mvc.perform(get(PATH + "/{id}", id).principal(as(EMAIL)))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("NOTIFICATION_NOT_FOUND"));
         verify(repository).findById(new NotificationId(id), OWNER);
     }
 }
