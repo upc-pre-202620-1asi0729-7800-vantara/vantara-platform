@@ -41,7 +41,8 @@ contextos están pendientes.
    ```
 
    Opcionales: `SPRING_PROFILES_ACTIVE` (`dev` por defecto), `SERVER_PORT` (`8080`),
-   `JWT_EXPIRATION_DAYS` (`7`) y `NOTIFICATIONS_EMAIL_LOG_CODES` (`false`; en `true` los códigos
+   `JWT_EXPIRATION_DAYS` (`7`), `CORS_ALLOWED_ORIGINS` (lista de orígenes separados por coma, sin comodines;
+   por defecto `http://localhost:4200`; en producción debe ser el origen de la web app) y `NOTIFICATIONS_EMAIL_LOG_CODES` (`false`; en `true` los códigos
    de verificación se escriben en el log, solo para desarrollo local, porque aún no hay proveedor de correo).
 
 3. Levantar la aplicación:

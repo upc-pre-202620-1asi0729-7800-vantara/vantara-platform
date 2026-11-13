@@ -4,6 +4,7 @@ import com.vantara.platform.iam.infrastructure.authorization.sfs.pipeline.Bearer
 import com.vantara.platform.iam.infrastructure.hashing.bcrypt.BCryptHashingService;
 import com.vantara.platform.iam.infrastructure.tokens.jwt.BearerTokenService;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -34,16 +35,23 @@ public class WebSecurityConfiguration {
     private final BearerTokenService tokenService;
     private final BCryptHashingService hashingService;
     private final AuthenticationEntryPoint unauthorizedRequestHandler;
+    private final List<String> allowedOrigins;
 
     public WebSecurityConfiguration(
             @Qualifier("defaultUserDetailsService") UserDetailsService userDetailsService,
             BearerTokenService tokenService,
             BCryptHashingService hashingService,
-            AuthenticationEntryPoint authenticationEntryPoint) {
+            AuthenticationEntryPoint authenticationEntryPoint,
+            @Value("${authorization.cors.allowed-origins}") List<String> allowedOrigins) {
         this.userDetailsService = userDetailsService;
         this.tokenService = tokenService;
         this.hashingService = hashingService;
         this.unauthorizedRequestHandler = authenticationEntryPoint;
+        if (allowedOrigins.stream().anyMatch(origin -> origin.isBlank() || origin.contains("*"))) {
+            throw new IllegalStateException(
+                    "authorization.cors.allowed-origins must list explicit origins; wildcards are not allowed");
+        }
+        this.allowedOrigins = List.copyOf(allowedOrigins);
     }
 
     @Bean
@@ -72,9 +80,10 @@ public class WebSecurityConfiguration {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http.cors(cors -> cors.configurationSource(request -> {
             var configuration = new CorsConfiguration();
-            configuration.setAllowedOrigins(List.of("*"));
-            configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE"));
-            configuration.setAllowedHeaders(List.of("*"));
+            configuration.setAllowedOrigins(allowedOrigins);
+            configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+            configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "Accept-Language"));
+            configuration.setMaxAge(3600L);
             return configuration;
         }));
         http.csrf(csrf -> csrf.disable())
