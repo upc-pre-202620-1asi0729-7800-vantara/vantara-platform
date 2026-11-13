@@ -1,0 +1,40 @@
+package com.vantara.platform.iam.infrastructure.authorization.sfs.services;
+
+import com.vantara.platform.iam.domain.repositories.UserRepository;
+import com.vantara.platform.iam.domain.model.valueobjects.EmailAddress;
+import com.vantara.platform.iam.infrastructure.authorization.sfs.model.UserDetailsImpl;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.stereotype.Service;
+
+/**
+ * Loads accounts by email for Spring Security.
+ */
+@Service("defaultUserDetailsService")
+public class UserDetailsServiceImpl implements UserDetailsService, UserDetailsByIdService {
+
+    private final UserRepository userRepository;
+
+    public UserDetailsServiceImpl(UserRepository userRepository) {
+        this.userRepository = userRepository;
+    }
+
+    @Override
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        try {
+            return userRepository.findByEmail(new EmailAddress(username))
+                    .map(UserDetailsImpl::build)
+                    .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+        } catch (IllegalArgumentException e) {
+            throw new UsernameNotFoundException("User not found");
+        }
+    }
+
+    @Override
+    public UserDetails loadUserById(Long userId) throws UsernameNotFoundException {
+        return userRepository.findById(userId)
+                .map(UserDetailsImpl::build)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+    }
+}

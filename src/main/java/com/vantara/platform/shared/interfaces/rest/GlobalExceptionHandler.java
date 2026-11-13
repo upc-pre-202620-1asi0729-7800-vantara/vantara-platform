@@ -3,7 +3,10 @@ package com.vantara.platform.shared.interfaces.rest;
 import com.vantara.platform.shared.application.result.ApplicationError;
 import com.vantara.platform.shared.interfaces.rest.transform.ErrorResponseAssembler;
 import org.jspecify.annotations.NullMarked;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -24,6 +27,7 @@ import java.util.ResourceBundle;
 @RestControllerAdvice
 @NullMarked
 public class GlobalExceptionHandler {
+    private static final Logger LOGGER = LoggerFactory.getLogger(GlobalExceptionHandler.class);
     private static final String MESSAGES_BASENAME = "messages";
     // Without this control, a missing messages_en falls back to the JVM default locale (e.g. Spanish)
     private static final ResourceBundle.Control NO_FALLBACK =
@@ -98,6 +102,20 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handles a unique constraint hit by concurrent requests (for example two sign-ups with the same
+     * email) as a conflict. The database message is not exposed.
+     *
+     * @param ex the exception raised by the persistence layer
+     * @return error response with CONFLICT status
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<?> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+        var applicationError = ApplicationError.conflict(
+                "resource", resolveMessageOrDefault("error.conflict.data", "The resource already exists"));
+        return ErrorResponseAssembler.toErrorResponseFromApplicationError(applicationError);
+    }
+
+    /**
      * Handles unexpected runtime exceptions not caught by specific handlers.
      * Maps to a generic unexpected error response.
      *
@@ -106,11 +124,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<?> handleRuntimeException(RuntimeException ex) {
-        var applicationError = ApplicationError.unexpected(
-                resolveMessageOrDefault("error.unexpected.context", "global-exception-handler"),
-                ex.getMessage() != null ? ex.getMessage() : "An unexpected error occurred"
-        );
-        return ErrorResponseAssembler.toErrorResponseFromApplicationError(applicationError);
+        return unexpectedError(ex);
     }
 
     /**
@@ -122,9 +136,18 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<?> handleException(Exception ex) {
+        return unexpectedError(ex);
+    }
+
+    /**
+     * Builds the 500 response. The cause is written to the server log only: the client receives a
+     * generic message so internal details (SQL, class names, paths) are never exposed.
+     */
+    private ResponseEntity<?> unexpectedError(Exception ex) {
+        LOGGER.error("Unexpected error while handling a request", ex);
         var applicationError = ApplicationError.unexpected(
                 resolveMessageOrDefault("error.unexpected.context", "global-exception-handler"),
-                ex.getMessage() != null ? ex.getMessage() : "An unexpected error occurred"
+                resolveMessageOrDefault("error.unexpected.message", "An unexpected error occurred")
         );
         return ErrorResponseAssembler.toErrorResponseFromApplicationError(applicationError);
     }
