@@ -8,12 +8,20 @@ import com.vantara.platform.livestockmanagement.application.commandservices.Live
 import com.vantara.platform.livestockmanagement.application.queries.*;
 import com.vantara.platform.livestockmanagement.application.queryservices.LivestockManagementQueryService;
 import com.vantara.platform.livestockmanagement.interfaces.rest.resources.*;
+import com.vantara.platform.livestockmanagement.application.commandservices.LivestockManagementCommandFailure;
+import com.vantara.platform.livestockmanagement.interfaces.rest.transform.LivestockFailureAssembler;
+import com.vantara.platform.shared.application.result.ApplicationError;
+import com.vantara.platform.shared.application.result.Result;
+import com.vantara.platform.shared.interfaces.rest.transform.ErrorResponseAssembler;
+import com.vantara.platform.shared.interfaces.rest.transform.ResponseEntityAssembler;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.Function;
 
 @RestController
 @CrossOrigin(origins = "http://localhost:4200")
@@ -45,20 +53,20 @@ public class LivestockController {
     }
 
     @GetMapping("/animals/{id}")
-    public ResponseEntity<AnimalResource> getAnimal(
+    public ResponseEntity<?> getAnimal(
             @PathVariable String id
     ) {
         return queries.handle(new GetAnimalByIdQuery(id))
                 .map(AnimalResource::from)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+                .<ResponseEntity<?>>map(ResponseEntity::ok)
+                .orElseGet(() -> notFound("animal", id));
     }
 
     @PostMapping("/animals")
-    public ResponseEntity<AnimalResource> createAnimal(
+    public ResponseEntity<?> createAnimal(
             @Valid @RequestBody AnimalResource resource
     ) {
-        return commands.handle(
+        return respond(commands.handle(
                         new CreateAnimalCommand(
                                 resource.rancherId(),
                                 resource.lotId(),
@@ -76,21 +84,18 @@ public class LivestockController {
                                 resource.photoUrl(),
                                 resource.weanedOn()
                         )
-                ).toOptional()
-                .map(AnimalResource::from)
-                .map(body -> ResponseEntity.status(201).body(body))
-                .orElseGet(() -> ResponseEntity.badRequest().build());
+                ), AnimalResource::from, HttpStatus.CREATED);
     }
 
     @PatchMapping("/animals/{id}")
-    public ResponseEntity<AnimalResource> updateAnimal(
+    public ResponseEntity<?> updateAnimal(
             @PathVariable String id,
             @RequestBody Map<String, Object> changes
     ) {
         var existing = queries.handle(new GetAnimalByIdQuery(id));
 
         if (existing.isEmpty()) {
-            return ResponseEntity.notFound().build();
+            return notFound("animal", id);
         }
 
         Map<String, Object> fields = new LinkedHashMap<>(
@@ -114,7 +119,7 @@ public class LivestockController {
                 AnimalResource.class
         );
 
-        return commands.handle(
+        return respond(commands.handle(
                         new UpdateAnimalCommand(
                                 id,
                                 replacement.lotId(),
@@ -130,20 +135,14 @@ public class LivestockController {
                                 replacement.photoUrl(),
                                 replacement.weanedOn()
                         )
-                ).toOptional()
-                .map(AnimalResource::from)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.badRequest().build());
+                ), AnimalResource::from, HttpStatus.OK);
     }
 
     @DeleteMapping("/animals/{id}")
-    public ResponseEntity<Void> deleteAnimal(
+    public ResponseEntity<?> deleteAnimal(
             @PathVariable String id
     ) {
-        return commands.handle(new DeleteAnimalCommand(id))
-                .toOptional()
-                .map(ignored -> ResponseEntity.noContent().<Void>build())
-                .orElseGet(() -> ResponseEntity.badRequest().build());
+        return respond(commands.handle(new DeleteAnimalCommand(id)), ignored -> null, HttpStatus.NO_CONTENT);
     }
 
     // LOTS
@@ -157,30 +156,27 @@ public class LivestockController {
     }
 
     @GetMapping("/lots/{id}")
-    public ResponseEntity<LotResource> getLot(
+    public ResponseEntity<?> getLot(
             @PathVariable String id
     ) {
         return queries.handle(new GetLotByIdQuery(id))
                 .map(LotResource::from)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+                .<ResponseEntity<?>>map(ResponseEntity::ok)
+                .orElseGet(() -> notFound("lot", id));
     }
 
     @PostMapping("/lots")
-    public ResponseEntity<LotResource> createLot(
+    public ResponseEntity<?> createLot(
             @Valid @RequestBody LotResource resource
     ) {
-        return commands.handle(
+        return respond(commands.handle(
                         new CreateLotCommand(
                                 resource.rancherId(),
                                 resource.name(),
                                 resource.purpose(),
                                 resource.status()
                         )
-                ).toOptional()
-                .map(LotResource::from)
-                .map(body -> ResponseEntity.status(201).body(body))
-                .orElseGet(() -> ResponseEntity.badRequest().build());
+                ), LotResource::from, HttpStatus.CREATED);
     }
 
     // MOVEMENTS
@@ -196,10 +192,10 @@ public class LivestockController {
     }
 
     @PostMapping("/movements")
-    public ResponseEntity<MovementResource> recordMovement(
+    public ResponseEntity<?> recordMovement(
             @Valid @RequestBody MovementResource resource
     ) {
-        return commands.handle(
+        return respond(commands.handle(
                         new RecordMovementCommand(
                                 resource.animalId(),
                                 resource.originLotId(),
@@ -209,10 +205,7 @@ public class LivestockController {
                                 resource.reason(),
                                 resource.recordedBy()
                         )
-                ).toOptional()
-                .map(MovementResource::from)
-                .map(body -> ResponseEntity.status(201).body(body))
-                .orElseGet(() -> ResponseEntity.badRequest().build());
+                ), MovementResource::from, HttpStatus.CREATED);
     }
 
     // FEEDING PLANS
@@ -226,20 +219,20 @@ public class LivestockController {
     }
 
     @GetMapping("/feedingPlans/{id}")
-    public ResponseEntity<FeedingPlanResource> getFeedingPlan(
+    public ResponseEntity<?> getFeedingPlan(
             @PathVariable String id
     ) {
         return queries.handle(new GetFeedingPlanByIdQuery(id))
                 .map(FeedingPlanResource::from)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+                .<ResponseEntity<?>>map(ResponseEntity::ok)
+                .orElseGet(() -> notFound("feedingPlan", id));
     }
 
     @PostMapping("/feedingPlans")
-    public ResponseEntity<FeedingPlanResource> createFeedingPlan(
+    public ResponseEntity<?> createFeedingPlan(
             @Valid @RequestBody FeedingPlanResource resource
     ) {
-        return commands.handle(
+        return respond(commands.handle(
                         new CreateFeedingPlanCommand(
                                 resource.lotId(),
                                 resource.animalId(),
@@ -274,10 +267,7 @@ public class LivestockController {
                                         )
                                         .toList()
                         )
-                ).toOptional()
-                .map(FeedingPlanResource::from)
-                .map(body -> ResponseEntity.status(201).body(body))
-                .orElseGet(() -> ResponseEntity.badRequest().build());
+                ), FeedingPlanResource::from, HttpStatus.CREATED);
     }
 
     // FEEDING LOGS
@@ -294,10 +284,10 @@ public class LivestockController {
     }
 
     @PostMapping("/feedingLogs")
-    public ResponseEntity<FeedingLogResource> recordFeeding(
+    public ResponseEntity<?> recordFeeding(
             @Valid @RequestBody RecordFeedingResource resource
     ) {
-        return commands.handle(
+        return respond(commands.handle(
                         new RecordFeedingCommand(
                                 resource.feedingPlanId(),
                                 resource.planItemId(),
@@ -308,9 +298,24 @@ public class LivestockController {
                                 resource.recordedBy(),
                                 resource.notes()
                         )
-                ).toOptional()
-                .map(FeedingLogResource::from)
-                .map(body -> ResponseEntity.status(201).body(body))
-                .orElseGet(() -> ResponseEntity.badRequest().build());
+                ), FeedingLogResource::from, HttpStatus.CREATED);
+    }
+
+    private static <T, R> ResponseEntity<?> respond(
+            Result<T, LivestockManagementCommandFailure> result,
+            Function<T, R> resourceAssembler,
+            HttpStatus status
+    ) {
+        return ResponseEntityAssembler.toResponseEntityFromResult(
+                result.mapError(LivestockFailureAssembler::toApplicationError),
+                resourceAssembler,
+                status
+        );
+    }
+
+    private static ResponseEntity<?> notFound(String resource, String id) {
+        return ErrorResponseAssembler.toErrorResponseFromApplicationError(
+                ApplicationError.notFound(resource, id)
+        );
     }
 }
