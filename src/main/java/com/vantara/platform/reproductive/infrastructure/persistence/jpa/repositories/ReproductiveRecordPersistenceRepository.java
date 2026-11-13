@@ -16,7 +16,7 @@ public interface ReproductiveRecordPersistenceRepository extends JpaRepository<R
 
     List<ReproductiveRecordPersistenceEntity> findAllByOrderByConfirmedOnAscIdAsc();
 
-    List<ReproductiveRecordPersistenceEntity> findAllByAnimalIdOrderByConfirmedOnAscIdAsc(Long animalId);
+    List<ReproductiveRecordPersistenceEntity> findAllByAnimalIdOrderByConfirmedOnAscIdAsc(String animalId);
 
-    boolean existsByAnimalIdAndStatusIn(Long animalId, Collection<ReproductiveStatus> statuses);
+    boolean existsByAnimalIdAndStatusIn(String animalId, Collection<ReproductiveStatus> statuses);
 }

@@ -10,11 +10,11 @@ import java.time.LocalDate;
 @Schema(
         name = "RegisterPregnancyRequest",
         description = "Request payload to register a confirmed pregnancy",
-        example = "{\"animalId\": 12, \"confirmedOn\": \"2026-10-15\", \"expectedCalvingOn\": \"2027-07-25\"}"
+        example = "{\"animalId\": \"3f2b8c9e-5d41-4a7e-9c1a-0b6d2e8f7a14\", \"confirmedOn\": \"2026-10-15\", \"expectedCalvingOn\": \"2027-07-25\"}"
 )
 public record RegisterPregnancyResource(
-        @Schema(description = "Identifier of the pregnant animal", example = "12")
-        Long animalId,
+        @Schema(description = "Identifier of the pregnant animal", example = "3f2b8c9e-5d41-4a7e-9c1a-0b6d2e8f7a14")
+        String animalId,
 
         @Schema(description = "Date the pregnancy was confirmed (ISO yyyy-MM-dd); cannot be in the future",
                 example = "2026-10-15", format = "date")

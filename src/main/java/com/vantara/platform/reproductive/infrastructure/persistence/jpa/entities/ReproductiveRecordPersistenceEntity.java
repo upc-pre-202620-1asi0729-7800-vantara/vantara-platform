@@ -24,8 +24,8 @@ import java.time.LocalDate;
 @NoArgsConstructor
 public class ReproductiveRecordPersistenceEntity extends AuditableAbstractPersistenceEntity {
 
-    @Column(name = "animal_id", nullable = false)
-    private Long animalId;
+    @Column(name = "animal_id", nullable = false, length = 36)
+    private String animalId;
 
     @Column(name = "confirmed_on", nullable = false)
     private LocalDate confirmedOn;
@@ -42,8 +42,8 @@ public class ReproductiveRecordPersistenceEntity extends AuditableAbstractPersis
     @Column(name = "calving_outcome", length = 120)
     private String calvingOutcome;
 
-    @Column(name = "calf_id")
-    private Long calfId;
+    @Column(name = "calf_id", length = 36)
+    private String calfId;
 
     @Column(name = "birth_weight_kg", precision = 7, scale = 2)
     private BigDecimal birthWeightKg;

@@ -15,7 +15,7 @@ import java.time.LocalDate;
  */
 public record DryOffRegisteredEvent(
         Long recordId,
-        Long animalId,
+        String animalId,
         LocalDate dryOffOn,
         Instant occurredAt
 ) implements DomainEvent {

@@ -13,7 +13,7 @@ import java.time.LocalDate;
  */
 public record DryOffRegisteredIntegrationEvent(
         Long recordId,
-        Long animalId,
+        String animalId,
         LocalDate dryOffOn,
         Instant occurredAt
 ) {

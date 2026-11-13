@@ -224,8 +224,8 @@ public class ReproductiveRecordsController {
     })
     public ResponseEntity<List<ReproductiveRecordResource>> getReproductiveHistory(
             @RequestParam(required = false)
-            @Parameter(description = "Animal identifier to filter by", example = "12")
-            Long animalId
+            @Parameter(description = "Animal identifier to filter by", example = "3f2b8c9e-5d41-4a7e-9c1a-0b6d2e8f7a14")
+            String animalId
     ) {
         var records = animalId == null
                 ? queryService.handle(new GetAllReproductiveRecordsQuery())

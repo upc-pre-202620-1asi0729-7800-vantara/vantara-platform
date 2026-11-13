@@ -14,8 +14,8 @@ import java.time.LocalDate;
  */
 public record WeaningRegisteredIntegrationEvent(
         Long recordId,
-        Long animalId,
-        Long calfId,
+        String animalId,
+        String calfId,
         LocalDate weanedOn,
         Instant occurredAt
 ) {

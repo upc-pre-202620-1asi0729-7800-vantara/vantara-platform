@@ -16,11 +16,11 @@ public record ReproductiveRecordResource(
         @Schema(description = "Record identifier", example = "1")
         Long id,
 
-        @Schema(description = "Identifier of the pregnant animal (mother)", example = "12")
-        Long animalId,
+        @Schema(description = "Identifier of the pregnant animal (mother)", example = "3f2b8c9e-5d41-4a7e-9c1a-0b6d2e8f7a14")
+        String animalId,
 
         @Schema(description = "Identifier of the calf born in the calving, null until a calf is registered", nullable = true)
-        Long calfId,
+        String calfId,
 
         @Schema(description = "Date the pregnancy was confirmed", example = "2026-10-15", format = "date")
         LocalDate confirmedOn,

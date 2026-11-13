@@ -1,6 +1,6 @@
 package com.vantara.platform.reproductive.application.internal.outboundservices.acl;
 
-import com.vantara.platform.livestock.interfaces.acl.LivestockContextFacade;
+import com.vantara.platform.livestockmanagement.interfaces.acl.LivestockContextFacade;
 import com.vantara.platform.reproductive.domain.model.commands.CalfRegistration;
 import com.vantara.platform.reproductive.domain.model.valueobjects.AnimalId;
 import com.vantara.platform.reproductive.domain.model.valueobjects.WeightInKg;
@@ -38,10 +38,11 @@ public class ExternalLivestockService {
     }
 
     /**
-     * @return {@code true} when an animal already uses the ear tag
+     * @param animalId an animal of the rancher to check, for example the mother of a calf
+     * @return {@code true} when the rancher that owns that animal already uses the ear tag
      */
-    public boolean existsAnimalByEarTag(String earTag) {
-        return livestockContextFacade.existsAnimalByEarTag(earTag);
+    public boolean existsEarTagInRancherOf(AnimalId animalId, String earTag) {
+        return livestockContextFacade.existsEarTagInRancherOf(animalId.animalId(), earTag);
     }
 
     /**
@@ -50,9 +51,9 @@ public class ExternalLivestockService {
      * @return the calf identifier, or empty when livestock could not register it
      */
     public Optional<AnimalId> registerCalf(AnimalId motherId, CalfRegistration calf, LocalDate birthDate) {
-        var calfId = livestockContextFacade.registerCalf(
-                motherId.animalId(), calf.name(), calf.earTag(), calf.sex().name(), calf.weightKg(), birthDate);
-        return calfId == null || calfId == 0L ? Optional.empty() : Optional.of(new AnimalId(calfId));
+        return livestockContextFacade.registerCalf(
+                        motherId.animalId(), calf.name(), calf.earTag(), calf.sex().name(), calf.weightKg(), birthDate)
+                .map(AnimalId::new);
     }
 
     /**

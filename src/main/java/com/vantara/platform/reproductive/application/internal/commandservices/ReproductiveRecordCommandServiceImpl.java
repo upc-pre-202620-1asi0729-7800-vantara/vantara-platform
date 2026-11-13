@@ -90,7 +90,7 @@ public class ReproductiveRecordCommandServiceImpl implements ReproductiveRecordC
             if (command.calf() != null) {
                 var calf = command.calf();
                 birthWeight = new WeightInKg(calf.weightKg());
-                if (externalLivestockService.existsAnimalByEarTag(calf.earTag())) {
+                if (externalLivestockService.existsEarTagInRancherOf(record.getAnimalId(), calf.earTag())) {
                     return Result.failure(ApplicationError.conflict(
                             "Animal", "The ear tag '%s' already belongs to another animal".formatted(calf.earTag())));
                 }

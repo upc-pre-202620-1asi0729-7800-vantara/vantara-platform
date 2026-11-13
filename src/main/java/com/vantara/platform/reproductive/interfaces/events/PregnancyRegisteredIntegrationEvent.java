@@ -17,7 +17,7 @@ import java.time.LocalDate;
  */
 public record PregnancyRegisteredIntegrationEvent(
         Long recordId,
-        Long animalId,
+        String animalId,
         LocalDate confirmedOn,
         LocalDate expectedCalvingOn,
         Instant occurredAt

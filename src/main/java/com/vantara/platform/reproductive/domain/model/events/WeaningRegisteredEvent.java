@@ -16,8 +16,8 @@ import java.time.LocalDate;
  */
 public record WeaningRegisteredEvent(
         Long recordId,
-        Long animalId,
-        Long calfId,
+        String animalId,
+        String calfId,
         LocalDate weanedOn,
         Instant occurredAt
 ) implements DomainEvent {

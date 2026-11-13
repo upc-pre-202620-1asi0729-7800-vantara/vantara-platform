@@ -17,8 +17,8 @@ import java.time.LocalDate;
  */
 public record BirthRegisteredEvent(
         Long recordId,
-        Long animalId,
-        Long calfId,
+        String animalId,
+        String calfId,
         LocalDate calvedOn,
         String outcome,
         Instant occurredAt
