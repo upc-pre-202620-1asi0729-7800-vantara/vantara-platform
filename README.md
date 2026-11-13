@@ -3,10 +3,11 @@
 Backend de **Vantara / Hatarium**, la plataforma de gestión ganadera.
 
 Proyecto Spring Boot organizado por *bounded contexts* y capas DDD
-(`domain`, `application`, `infrastructure`, `interfaces`). Esta rama
-`feature/profile-management` contiene el shared kernel, el bounded context
-**IAM** (identidad y acceso) y el bounded context **Profile** (datos personales
-y preferencias del usuario).
+(`domain`, `application`, `infrastructure`, `interfaces`). `develop` contiene el
+shared kernel y los bounded contexts **IAM** (identidad y acceso), **Profile**
+(datos personales y preferencias del usuario) y **Payments** (pagos y
+comprobantes), además de los demás contextos integrados desde sus ramas
+`feature/<contexto>`.
 
 ## Stack
 
@@ -97,6 +98,26 @@ Con la aplicación levantada:
 - Swagger UI: <http://localhost:8080/swagger-ui.html>
 - OpenAPI JSON: <http://localhost:8080/v3/api-docs>
 
+## Payments
+
+Esta rama agrega el bounded context de pagos:
+
+- Checkout compartido para suscripciones y citas veterinarias.
+- Pago simulado como `paid` con `FakePay`.
+- Comprobantes en PDF generados automáticamente con OpenPDF.
+- Método de pago no sensible: marca, últimos cuatro dígitos y titular.
+
+Endpoints principales:
+
+- `GET/POST /api/v1/payments`
+- `GET /api/v1/payments/{id}`
+- `GET /api/v1/transactions?paymentId=`
+- `GET /api/v1/receipts?paymentId=`
+- `GET /api/v1/receipts/{id}/document`
+
+Ver [docs/payments.md](docs/payments.md) para el contrato, los ejemplos y el
+modelo de datos.
+
 ## Estructura base
 
 ```text
@@ -115,11 +136,23 @@ src/main/java/com/vantara/platform/
 │   └── interfaces/rest/                             # GlobalExceptionHandler, resources/, transform/
 ├── iam/                                             # bounded context Identity and Access Management
 │   └── domain/  application/  infrastructure/  interfaces/   # ver la estructura siguiente
-└── profile/                                          # bounded context Profile Management
-    └── domain/  application/  infrastructure/  interfaces/
+├── profile/                                         # bounded context Profile Management
+│   └── domain/  application/  infrastructure/  interfaces/
+└── payments/
+    ├── domain/model/aggregates/                     # Payment
+    ├── domain/model/entities/                       # PaymentTransaction, PaymentReceipt
+    ├── domain/model/valueobjects/                   # PaymentStatus, TransactionStatus, PaymentMethod
+    ├── domain/repositories/                         # puertos de persistencia
+    ├── application/                                 # comandos, queries y puertos
+    ├── infrastructure/persistence/jpa/              # entidades, mappers y adaptadores
+    ├── infrastructure/payment/                      # FakePaymentGateway
+    ├── infrastructure/receipt/                      # PDF y numeración de comprobantes
+    └── interfaces/rest/                             # controladores, resources y mappers
 ```
 
-Los bounded contexts se agregan uno por uno en ramas `feature/<contexto>`.
+La base en `main` y `develop` contiene únicamente el shared kernel. Los bounded
+contexts y sus pruebas se agregan en ramas `feature/<contexto>`.
+
 Cada bounded context sigue esta estructura (la de la referencia de Efrain):
 
 ```text
