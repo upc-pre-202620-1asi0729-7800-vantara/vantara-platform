@@ -1,8 +1,8 @@
 package com.vantara.platform.notifications.interfaces.rest;
 
+import com.vantara.platform.iam.interfaces.acl.IamContextFacade;
 import com.vantara.platform.notifications.application.internal.commandservices.NotificationCommandServiceImpl;
 import com.vantara.platform.notifications.application.internal.queryservices.NotificationQueryServiceImpl;
-import com.vantara.platform.notifications.application.queryservices.NotificationRecipientLookup;
 import com.vantara.platform.notifications.domain.model.aggregates.Notification;
 import com.vantara.platform.notifications.domain.model.valueobjects.NotificationStatus;
 import com.vantara.platform.notifications.domain.model.valueobjects.NotificationType;
@@ -12,8 +12,7 @@ import org.springframework.http.MediaType;
 import com.vantara.platform.notifications.domain.repositories.NotificationRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.beans.factory.support.StaticListableBeanFactory;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -50,21 +49,18 @@ class NotificationsControllerTest {
     @BeforeEach
     void setUp() {
         repository = mock(NotificationRepository.class);
-        var beans = new StaticListableBeanFactory();
-        var lookup = mock(NotificationRecipientLookup.class);
-        when(lookup.findByAuthenticatedName(EMAIL)).thenReturn(Optional.of(OWNER));
-        when(lookup.findByAuthenticatedName("unknown@example.com")).thenReturn(Optional.empty());
-        beans.addBean("recipientLookup", lookup);
-        mvc = createMvc(beans.getBeanProvider(NotificationRecipientLookup.class));
-    }
-
-    private MockMvc createMvc(ObjectProvider<NotificationRecipientLookup> lookup) {
-        var recipients = new AuthenticatedNotificationRecipient(lookup);
+        var iam = mock(IamContextFacade.class);
+        when(iam.fetchUserIdByEmail(EMAIL)).thenReturn(Optional.of(OWNER.value()));
+        when(iam.fetchUserIdByEmail("unknown@example.com")).thenReturn(Optional.empty());
         var commands = new NotificationCommandServiceImpl(repository, Clock.fixed(NOW, ZoneOffset.UTC));
         var queries = new NotificationQueryServiceImpl(repository);
-        return MockMvcBuilders.standaloneSetup(new NotificationsController(commands, queries, recipients))
+        mvc = MockMvcBuilders.standaloneSetup(new NotificationsController(commands, queries, iam))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
+    }
+
+    private static UsernamePasswordAuthenticationToken as(String name) {
+        return new UsernamePasswordAuthenticationToken(name, null);
     }
 
     @Test
@@ -74,25 +70,16 @@ class NotificationsControllerTest {
     }
 
     @Test
-    void unavailableIdentityLookupFailsClosed() throws Exception {
-        var emptyContext = new StaticListableBeanFactory();
-        var mvcWithoutLookup = createMvc(emptyContext.getBeanProvider(NotificationRecipientLookup.class));
-        mvcWithoutLookup.perform(get(PATH).principal(() -> EMAIL)).andExpect(status().isServiceUnavailable());
-        mvcWithoutLookup.perform(get(PATH)).andExpect(status().isUnauthorized());
-        verifyNoInteractions(repository);
-    }
-
-    @Test
     void unknownOrBlankAuthenticatedNameFailsClosed() throws Exception {
-        mvc.perform(get(PATH).principal(() -> "unknown@example.com")).andExpect(status().isUnauthorized());
-        mvc.perform(get(PATH).principal(() -> " ")).andExpect(status().isUnauthorized());
+        mvc.perform(get(PATH).principal(as("unknown@example.com"))).andExpect(status().isUnauthorized());
+        mvc.perform(get(PATH).principal(as(" "))).andExpect(status().isUnauthorized());
         verifyNoInteractions(repository);
     }
 
     @Test
     void listIsScopedToTheAuthenticatedUser() throws Exception {
         when(repository.findAll(OWNER, null, null)).thenReturn(List.of());
-        mvc.perform(get(PATH).principal(() -> EMAIL).param("recipientUserId", "99"))
+        mvc.perform(get(PATH).principal(as(EMAIL)).param("recipientUserId", "99"))
                 .andExpect(status().isOk())
                 .andExpect(content().json("[]"));
         verify(repository).findAll(OWNER, null, null);
@@ -102,7 +89,7 @@ class NotificationsControllerTest {
     void unknownOrForeignNotificationReturnsNotFound() throws Exception {
         var id = UUID.randomUUID();
         when(repository.markAsRead(id, OWNER, NOW)).thenReturn(Optional.empty());
-        mvc.perform(patch(PATH + "/{id}", id).principal(() -> EMAIL))
+        mvc.perform(patch(PATH + "/{id}", id).principal(as(EMAIL)))
                 .andExpect(status().isNotFound());
         verify(repository).markAsRead(id, OWNER, NOW);
     }
@@ -111,7 +98,7 @@ class NotificationsControllerTest {
     void createsAnUnreadNotificationForTheAuthenticatedUser() throws Exception {
         when(repository.add(any(Notification.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        mvc.perform(post(PATH).principal(() -> EMAIL)
+        mvc.perform(post(PATH).principal(as(EMAIL))
                         .contentType(MediaType.APPLICATION_JSON).content(CREATE_JSON))
                 .andExpect(status().isCreated())
                 .andExpect(header().exists("Location"))
@@ -125,12 +112,14 @@ class NotificationsControllerTest {
     }
 
     @Test
-    void rejectsCreationForADifferentRecipient() throws Exception {
+    void ignoresARecipientSuppliedByTheClient() throws Exception {
+        when(repository.add(any(Notification.class))).thenAnswer(invocation -> invocation.getArgument(0));
         var payload = CREATE_JSON.replace("{", "{\"recipientUserId\":\"99\",");
-        mvc.perform(post(PATH).principal(() -> EMAIL)
+        mvc.perform(post(PATH).principal(as(EMAIL))
                         .contentType(MediaType.APPLICATION_JSON).content(payload))
-                .andExpect(status().isForbidden());
-        verifyNoInteractions(repository);
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.recipientUserId").value("7"));
+        verify(repository).add(argThat(notification -> notification.recipient().equals(OWNER)));
     }
 
     @Test
@@ -144,7 +133,7 @@ class NotificationsControllerTest {
 
     @Test
     void rejectsBlankTitleBeforePersisting() throws Exception {
-        mvc.perform(post(PATH).principal(() -> EMAIL).contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(post(PATH).principal(as(EMAIL)).contentType(MediaType.APPLICATION_JSON)
                         .content(CREATE_JSON.replace("Animal requires attention", " ")))
                 .andExpect(status().isBadRequest());
         verifyNoInteractions(repository);
@@ -154,7 +143,7 @@ class NotificationsControllerTest {
     void filtersByTypeAndStatusForTheAuthenticatedUser() throws Exception {
         when(repository.findAll(OWNER, NotificationType.HEALTH_ALERT, NotificationStatus.UNREAD))
                 .thenReturn(List.of());
-        mvc.perform(get(PATH).principal(() -> EMAIL).param("type", "HEALTH_ALERT").param("status", "unread"))
+        mvc.perform(get(PATH).principal(as(EMAIL)).param("type", "HEALTH_ALERT").param("status", "unread"))
                 .andExpect(status().isOk())
                 .andExpect(content().json("[]"));
         verify(repository).findAll(OWNER, NotificationType.HEALTH_ALERT, NotificationStatus.UNREAD);
@@ -162,11 +151,11 @@ class NotificationsControllerTest {
 
     @Test
     void rejectsInvalidFiltersAndIdentifiers() throws Exception {
-        mvc.perform(get(PATH).principal(() -> EMAIL).param("status", "other"))
+        mvc.perform(get(PATH).principal(as(EMAIL)).param("status", "other"))
                 .andExpect(status().isBadRequest());
-        mvc.perform(get(PATH).principal(() -> EMAIL).param("type", "other"))
+        mvc.perform(get(PATH).principal(as(EMAIL)).param("type", "other"))
                 .andExpect(status().isBadRequest());
-        mvc.perform(get(PATH + "/{id}", "invalid").principal(() -> EMAIL))
+        mvc.perform(get(PATH + "/{id}", "invalid").principal(as(EMAIL)))
                 .andExpect(status().isBadRequest());
         verifyNoInteractions(repository);
     }
@@ -175,7 +164,7 @@ class NotificationsControllerTest {
     void lookupReturnsNotFoundForAnAbsentOrForeignNotification() throws Exception {
         var id = UUID.randomUUID();
         when(repository.findById(id, OWNER)).thenReturn(Optional.empty());
-        mvc.perform(get(PATH + "/{id}", id).principal(() -> EMAIL))
+        mvc.perform(get(PATH + "/{id}", id).principal(as(EMAIL)))
                 .andExpect(status().isNotFound());
         verify(repository).findById(id, OWNER);
     }
