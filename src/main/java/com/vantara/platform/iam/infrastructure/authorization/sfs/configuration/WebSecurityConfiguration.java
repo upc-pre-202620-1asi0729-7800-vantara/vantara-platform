@@ -1,6 +1,7 @@
 package com.vantara.platform.iam.infrastructure.authorization.sfs.configuration;
 
 import com.vantara.platform.iam.infrastructure.authorization.sfs.pipeline.BearerAuthorizationRequestFilter;
+import com.vantara.platform.iam.infrastructure.authorization.sfs.services.UserDetailsByIdService;
 import com.vantara.platform.iam.infrastructure.hashing.bcrypt.BCryptHashingService;
 import com.vantara.platform.iam.infrastructure.tokens.jwt.BearerTokenService;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -32,6 +33,7 @@ import java.util.List;
 public class WebSecurityConfiguration {
 
     private final UserDetailsService userDetailsService;
+    private final UserDetailsByIdService userDetailsByIdService;
     private final BearerTokenService tokenService;
     private final BCryptHashingService hashingService;
     private final AuthenticationEntryPoint unauthorizedRequestHandler;
@@ -39,11 +41,13 @@ public class WebSecurityConfiguration {
 
     public WebSecurityConfiguration(
             @Qualifier("defaultUserDetailsService") UserDetailsService userDetailsService,
+            UserDetailsByIdService userDetailsByIdService,
             BearerTokenService tokenService,
             BCryptHashingService hashingService,
             AuthenticationEntryPoint authenticationEntryPoint,
             @Value("${authorization.cors.allowed-origins}") List<String> allowedOrigins) {
         this.userDetailsService = userDetailsService;
+        this.userDetailsByIdService = userDetailsByIdService;
         this.tokenService = tokenService;
         this.hashingService = hashingService;
         this.unauthorizedRequestHandler = authenticationEntryPoint;
@@ -56,7 +60,7 @@ public class WebSecurityConfiguration {
 
     @Bean
     public BearerAuthorizationRequestFilter authorizationRequestFilter() {
-        return new BearerAuthorizationRequestFilter(tokenService, userDetailsService);
+        return new BearerAuthorizationRequestFilter(tokenService, userDetailsByIdService);
     }
 
     @Bean

@@ -6,10 +6,10 @@ package com.vantara.platform.iam.application.internal.outboundservices.tokens;
 public interface TokenService {
 
     /**
-     * @param email email address of the authenticated user, used as token subject
+     * @param userId id of the authenticated user, used as token subject (it never changes, unlike the email)
      * @return the signed token
      */
-    String generateToken(String email);
+    String generateToken(Long userId);
 
     /**
      * @return {@code true} when the token is well formed, correctly signed and not expired
@@ -17,7 +17,8 @@ public interface TokenService {
     boolean validateToken(String token);
 
     /**
-     * @return the email address stored in a valid token
+     * @return the user id stored in a valid token
+     * @throws IllegalArgumentException when the token subject is not a user id
      */
-    String getEmailFromToken(String token);
+    Long getUserIdFromToken(String token);
 }

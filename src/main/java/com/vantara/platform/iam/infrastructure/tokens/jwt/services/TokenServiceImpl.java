@@ -50,10 +50,13 @@ public class TokenServiceImpl implements BearerTokenService {
     }
 
     @Override
-    public String generateToken(String email) {
+    public String generateToken(Long userId) {
+        if (userId == null) {
+            throw new IllegalArgumentException("User id is required to issue a token");
+        }
         var issuedAt = clock.instant();
         return Jwts.builder()
-                .subject(email)
+                .subject(String.valueOf(userId))
                 .issuedAt(Date.from(issuedAt))
                 .expiration(Date.from(issuedAt.plus(expiration)))
                 .signWith(signingKey)
@@ -73,8 +76,12 @@ public class TokenServiceImpl implements BearerTokenService {
     }
 
     @Override
-    public String getEmailFromToken(String token) {
-        return parseClaims(token).getSubject();
+    public Long getUserIdFromToken(String token) {
+        try {
+            return Long.valueOf(parseClaims(token).getSubject());
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Token subject is not a user id");
+        }
     }
 
     @Override

@@ -130,7 +130,7 @@ public class UserCommandServiceImpl implements UserCommandService {
             }
             user.recordSignIn(clock.instant());
             var saved = userRepository.save(user);
-            var token = tokenService.generateToken(saved.getEmail().address());
+            var token = tokenService.generateToken(saved.getId());
             return Result.success(new AuthenticatedUser(saved, token));
         } catch (InvalidInputException e) {
             return Result.failure(e.error());
