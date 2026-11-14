@@ -14,4 +14,5 @@ public interface AnimalJpaRepository extends JpaRepository<AnimalJpaEntity, Stri
     Optional<AnimalJpaEntity> findByIdAndRancherId(String id, String rancherId);
 
     List<AnimalJpaEntity> findAllByRancherId(String rancherId);
+
 }

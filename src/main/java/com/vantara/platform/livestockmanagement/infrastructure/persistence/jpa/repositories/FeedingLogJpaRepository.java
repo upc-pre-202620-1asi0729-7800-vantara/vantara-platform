@@ -4,10 +4,13 @@ package com.vantara.platform.livestockmanagement.infrastructure.persistence.jpa.
 import com.vantara.platform.livestockmanagement.infrastructure.persistence.jpa.entities.FeedingLogJpaEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.Collection;
 import java.util.List;
 
 public interface FeedingLogJpaRepository
         extends JpaRepository<FeedingLogJpaEntity, String> {
+
+    List<FeedingLogJpaEntity> findAllByLotIdIn(Collection<String> lotIds);
 
     List<FeedingLogJpaEntity> findAllByLotId(String lotId);
 

@@ -9,8 +9,8 @@ import java.util.List;
  * @param totalAnimals   animals that match the filters
  * @param averageWeight  average weight in kilograms, two decimals
  * @param totalLots      distinct lots of the matching animals
- * @param males          matching animals whose sex is {@code Macho}
- * @param females        matching animals whose sex is {@code Hembra}
+ * @param males          matching animals whose sex is {@code Macho} or {@code MALE}
+ * @param females        matching animals whose sex is {@code Hembra} or {@code FEMALE}
  * @param animalsByLot   breakdown by lot
  * @param animalsByBreed breakdown by breed
  */

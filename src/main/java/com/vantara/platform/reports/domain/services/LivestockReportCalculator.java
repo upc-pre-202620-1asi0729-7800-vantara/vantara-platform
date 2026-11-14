@@ -16,13 +16,11 @@ import java.util.stream.Collectors;
 /**
  * Computes the livestock report of one rancher from owner-scoped snapshots.
  *
- * <p>Sex is compared case-insensitively. Only {@code Macho} and {@code Hembra} count as males and females;
- * other values still count in the totals.</p>
+ * <p>Sex is compared case-insensitively. {@code Male}/{@code Macho} and {@code Female}/{@code Hembra}
+ * are treated as equivalent; other values still count in the totals.</p>
  */
 public final class LivestockReportCalculator {
 
-    private static final String MALE = "Macho";
-    private static final String FEMALE = "Hembra";
     private static final int SCALE = 2;
 
     private LivestockReportCalculator() {
@@ -39,7 +37,8 @@ public final class LivestockReportCalculator {
                 .filter(animal -> filter.period().contains(animal.registeredAt()))
                 .filter(animal -> filter.lotId() == null || filter.lotId().equals(animal.lotId()))
                 .filter(animal -> filter.breed() == null || filter.breed().equals(animal.breed()))
-                .filter(animal -> filter.sex() == null || filter.sex().equalsIgnoreCase(animal.sex()))
+                .filter(animal -> filter.sex() == null
+                        || normalizeSex(filter.sex()).equals(normalizeSex(animal.sex())))
                 .filter(animal -> filter.status() == null || filter.status().equals(animal.status()))
                 .toList();
 
@@ -51,8 +50,8 @@ public final class LivestockReportCalculator {
                         lotNames.get(entry.getKey()),
                         entry.getValue().size(),
                         average(entry.getValue()),
-                        countSex(entry.getValue(), MALE),
-                        countSex(entry.getValue(), FEMALE)))
+                        countSex(entry.getValue(), true),
+                        countSex(entry.getValue(), false)))
                 .sorted(Comparator.comparing(LivestockReport.LotSummary::lotName,
                                 Comparator.nullsLast(Comparator.naturalOrder()))
                         .thenComparing(LivestockReport.LotSummary::lotId))
@@ -70,8 +69,8 @@ public final class LivestockReportCalculator {
                 selected.size(),
                 average(selected),
                 totalLots,
-                countSex(selected, MALE),
-                countSex(selected, FEMALE),
+                countSex(selected, true),
+                countSex(selected, false),
                 lotSummaries,
                 breedCounts);
     }
@@ -86,9 +85,28 @@ public final class LivestockReportCalculator {
         return total.divide(BigDecimal.valueOf(animals.size()), SCALE, RoundingMode.HALF_UP);
     }
 
-    private static int countSex(List<AnimalSnapshot> animals, String sex) {
+    private static int countSex(List<AnimalSnapshot> animals, boolean male) {
         return (int) animals.stream()
-                .filter(animal -> sex.equalsIgnoreCase(animal.sex()))
+                .filter(animal -> male ? isMale(animal.sex()) : isFemale(animal.sex()))
                 .count();
+    }
+
+    private static boolean isMale(String sex) {
+        return "male".equals(normalizeSex(sex));
+    }
+
+    private static boolean isFemale(String sex) {
+        return "female".equals(normalizeSex(sex));
+    }
+
+    private static String normalizeSex(String sex) {
+        if (sex == null) {
+            return "";
+        }
+        return switch (sex.trim().toLowerCase(java.util.Locale.ROOT)) {
+            case "male", "macho" -> "male";
+            case "female", "hembra" -> "female";
+            default -> sex.trim().toLowerCase(java.util.Locale.ROOT);
+        };
     }
 }

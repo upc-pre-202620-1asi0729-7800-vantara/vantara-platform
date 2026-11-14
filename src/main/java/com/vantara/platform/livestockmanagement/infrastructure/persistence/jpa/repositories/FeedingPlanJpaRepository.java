@@ -3,4 +3,10 @@ package com.vantara.platform.livestockmanagement.infrastructure.persistence.jpa.
 import com.vantara.platform.livestockmanagement.infrastructure.persistence.jpa.entities.FeedingPlanJpaEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface FeedingPlanJpaRepository extends JpaRepository<FeedingPlanJpaEntity, String> { }
+import java.util.Collection;
+import java.util.List;
+
+public interface FeedingPlanJpaRepository extends JpaRepository<FeedingPlanJpaEntity, String> {
+
+    List<FeedingPlanJpaEntity> findAllByLotIdIn(Collection<String> lotIds);
+}

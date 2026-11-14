@@ -10,6 +10,7 @@ import com.vantara.platform.livestockmanagement.infrastructure.persistence.jpa.r
 import com.vantara.platform.shared.infrastructure.events.DomainEventPublisher;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -48,6 +49,17 @@ public class FeedingPlanRepositoryAdapter implements FeedingPlanRepository {
     @Override
     public List<FeedingPlan> findAll() {
         return repository.findAll()
+                .stream()
+                .map(FeedingPlanMapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<FeedingPlan> findAllByLotIds(Collection<String> lotIds) {
+        if (lotIds == null || lotIds.isEmpty()) {
+            return List.of();
+        }
+        return repository.findAllByLotIdIn(lotIds)
                 .stream()
                 .map(FeedingPlanMapper::toDomain)
                 .toList();

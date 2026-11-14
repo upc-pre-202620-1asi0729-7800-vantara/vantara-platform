@@ -16,14 +16,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 /**
  * Computes the feeding report of one rancher from owner-scoped snapshots.
  *
  * <p>Only plans and records whose lot belongs to the rancher are considered, so a foreign lot never leaks into
- * the totals. A feeding record counts when its plan is selected and its date falls in the period.</p>
+ * the totals. A feeding record counts when its plan and plan item are selected and its date falls in the period.
+ * Quantities are never combined across different units.</p>
  */
 public final class FeedingReportCalculator {
 
@@ -54,7 +54,9 @@ public final class FeedingReportCalculator {
                 .filter(plan -> filter.lotId() == null || filter.lotId().equals(plan.lotId()))
                 .toList();
 
-        var planIds = selectedPlans.stream().map(FeedingPlanSnapshot::id).collect(Collectors.toSet());
+        var selectedPlanById = selectedPlans.stream()
+                .collect(Collectors.toMap(FeedingPlanSnapshot::id, plan -> plan, (first, second) -> first));
+        var planIds = selectedPlanById.keySet();
         Map<String, String> planIdByItemId = items.stream()
                 .filter(item -> planIds.contains(item.feedingPlanId()))
                 .collect(Collectors.toMap(FeedingPlanItemSnapshot::id, FeedingPlanItemSnapshot::feedingPlanId,
@@ -63,21 +65,26 @@ public final class FeedingReportCalculator {
         var selectedLogs = logs.stream()
                 .filter(log -> lotNames.containsKey(log.lotId()))
                 .filter(log -> planIdByItemId.containsKey(log.planItemId()))
+                .filter(log -> {
+                    var plan = selectedPlanById.get(planIdByItemId.get(log.planItemId()));
+                    return plan != null && plan.lotId().equals(log.lotId());
+                })
                 .filter(log -> filter.period().contains(log.feedAt().toLocalDate()))
                 .filter(log -> filter.lotId() == null || filter.lotId().equals(log.lotId()))
                 .toList();
 
         var animalsWithPlan = countAnimalsWithPlan(selectedPlans, ownedAnimals);
 
-        var totalConsumption = selectedLogs.stream()
-                .map(FeedingLogSnapshot::quantity)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        var units = selectedLogs.stream()
-                .map(FeedingLogSnapshot::unit)
-                .distinct()
-                .sorted()
+        var totalByUnit = selectedLogs.stream()
+                .collect(Collectors.groupingBy(FeedingLogSnapshot::unit, TreeMap::new,
+                        Collectors.reducing(BigDecimal.ZERO, FeedingLogSnapshot::quantity, BigDecimal::add)));
+        var units = List.copyOf(totalByUnit.keySet());
+        var totalConsumptionByUnit = totalByUnit.entrySet().stream()
+                .map(entry -> new FeedingReport.UnitConsumption(entry.getKey(), entry.getValue()))
                 .toList();
+        var totalConsumption = totalByUnit.isEmpty()
+                ? BigDecimal.ZERO
+                : totalByUnit.size() == 1 ? totalByUnit.values().iterator().next() : null;
 
         var consumptionByFeed = selectedLogs.stream()
                 .collect(Collectors.groupingBy(log -> new FeedUnit(log.feedName(), log.unit()),
@@ -88,7 +95,7 @@ public final class FeedingReportCalculator {
                         entry.getKey().feedName(), entry.getValue(), entry.getKey().unit()))
                 .toList();
 
-        var consumptionByLot = buildConsumptionByLot(selectedPlans, selectedLogs, lotNames);
+        var consumptionByLot = buildConsumptionByLot(selectedPlans, selectedLogs, lotNames, planIdByItemId);
 
         return new FeedingReport(
                 selectedPlans.size(),
@@ -96,6 +103,7 @@ public final class FeedingReportCalculator {
                 totalConsumption,
                 selectedLogs.size(),
                 units,
+                totalConsumptionByUnit,
                 consumptionByFeed,
                 consumptionByLot);
     }
@@ -118,30 +126,32 @@ public final class FeedingReportCalculator {
     }
 
     private static List<FeedingReport.LotConsumption> buildConsumptionByLot(
-            List<FeedingPlanSnapshot> plans, List<FeedingLogSnapshot> logs, Map<String, String> lotNames) {
-        var lotIds = plans.stream()
-                .map(FeedingPlanSnapshot::lotId)
-                .collect(Collectors.toCollection(TreeSet::new));
-
+            List<FeedingPlanSnapshot> plans,
+            List<FeedingLogSnapshot> logs,
+            Map<String, String> lotNames,
+            Map<String, String> planIdByItemId) {
         var rows = new ArrayList<FeedingReport.LotConsumption>();
-        for (var lotId : lotIds) {
-            var planName = plans.stream()
-                    .filter(plan -> lotId.equals(plan.lotId()))
-                    .min(PLAN_ORDER)
-                    .map(FeedingPlanSnapshot::name)
-                    .orElse(null);
-            var lotName = lotNames.get(lotId);
-            var lotLogs = logs.stream().filter(log -> lotId.equals(log.lotId())).toList();
+        var orderedPlans = plans.stream()
+                .sorted(Comparator.comparing(FeedingPlanSnapshot::lotId).thenComparing(PLAN_ORDER))
+                .toList();
+        for (var plan : orderedPlans) {
+            var lotName = lotNames.get(plan.lotId());
+            var planLogs = logs.stream()
+                    .filter(log -> plan.id().equals(planIdByItemId.get(log.planItemId())))
+                    .filter(log -> plan.lotId().equals(log.lotId()))
+                    .toList();
 
-            if (lotLogs.isEmpty()) {
-                rows.add(new FeedingReport.LotConsumption(lotId, lotName, planName, BigDecimal.ZERO, null));
+            if (planLogs.isEmpty()) {
+                rows.add(new FeedingReport.LotConsumption(
+                        plan.lotId(), lotName, plan.name(), BigDecimal.ZERO, null));
                 continue;
             }
-            lotLogs.stream()
+            planLogs.stream()
                     .collect(Collectors.groupingBy(FeedingLogSnapshot::unit, TreeMap::new,
                             Collectors.reducing(BigDecimal.ZERO, FeedingLogSnapshot::quantity, BigDecimal::add)))
                     .forEach((unit, quantity) -> rows.add(
-                            new FeedingReport.LotConsumption(lotId, lotName, planName, quantity, unit)));
+                            new FeedingReport.LotConsumption(
+                                    plan.lotId(), lotName, plan.name(), quantity, unit)));
         }
         return rows;
     }

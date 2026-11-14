@@ -18,6 +18,10 @@ public final class FeedingReportResourceFromEntityAssembler {
                 report.totalRegisteredConsumption(),
                 report.totalFeedingRecords(),
                 report.consumptionUnits(),
+                report.totalConsumptionByUnit().stream()
+                        .map(total -> new FeedingReportResource.UnitConsumptionResource(
+                                total.unit(), total.quantity()))
+                        .toList(),
                 report.consumptionByFeed().stream()
                         .map(feed -> new FeedingReportResource.FeedConsumptionResource(
                                 feed.feedName(), feed.quantity(), feed.unit()))

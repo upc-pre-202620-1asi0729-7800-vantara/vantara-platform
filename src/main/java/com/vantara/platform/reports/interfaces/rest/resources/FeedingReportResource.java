@@ -12,8 +12,12 @@ public record FeedingReportResource(
         BigDecimal totalRegisteredConsumption,
         int totalFeedingRecords,
         List<String> consumptionUnits,
+        List<UnitConsumptionResource> totalConsumptionByUnit,
         List<FeedConsumptionResource> consumptionByFeed,
         List<LotConsumptionResource> consumptionByLot) {
+
+    public record UnitConsumptionResource(String unit, BigDecimal quantity) {
+    }
 
     public record FeedConsumptionResource(String feedName, BigDecimal quantity, String unit) {
     }

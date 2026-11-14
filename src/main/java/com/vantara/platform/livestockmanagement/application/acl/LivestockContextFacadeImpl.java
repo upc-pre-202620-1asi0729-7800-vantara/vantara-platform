@@ -4,15 +4,15 @@ import com.vantara.platform.livestockmanagement.application.commandservices.Live
 import com.vantara.platform.livestockmanagement.application.commands.CreateAnimalCommand;
 import com.vantara.platform.livestockmanagement.application.commands.UpdateAnimalCommand;
 import com.vantara.platform.livestockmanagement.application.queries.ExistsAnimalByEarTagQuery;
-import com.vantara.platform.livestockmanagement.application.queries.GetAllAnimalsQuery;
-import com.vantara.platform.livestockmanagement.application.queries.GetAllFeedingPlansQuery;
-import com.vantara.platform.livestockmanagement.application.queries.GetAllLotsQuery;
 import com.vantara.platform.livestockmanagement.application.queries.GetAnimalByIdQuery;
-import com.vantara.platform.livestockmanagement.application.queries.GetFeedingLogsQuery;
 import com.vantara.platform.livestockmanagement.application.queryservices.LivestockManagementQueryService;
 import com.vantara.platform.livestockmanagement.domain.model.aggregates.Animal;
 import com.vantara.platform.livestockmanagement.domain.model.aggregates.FeedingPlan;
 import com.vantara.platform.livestockmanagement.domain.model.aggregates.Lot;
+import com.vantara.platform.livestockmanagement.domain.repositories.AnimalRepository;
+import com.vantara.platform.livestockmanagement.domain.repositories.FeedingLogRepository;
+import com.vantara.platform.livestockmanagement.domain.repositories.FeedingPlanRepository;
+import com.vantara.platform.livestockmanagement.domain.repositories.LotRepository;
 import com.vantara.platform.livestockmanagement.interfaces.acl.AnimalRecord;
 import com.vantara.platform.livestockmanagement.interfaces.acl.FeedingLogRecord;
 import com.vantara.platform.livestockmanagement.interfaces.acl.FeedingPlanItemRecord;
@@ -20,6 +20,7 @@ import com.vantara.platform.livestockmanagement.interfaces.acl.FeedingPlanRecord
 import com.vantara.platform.livestockmanagement.interfaces.acl.LivestockContextFacade;
 import com.vantara.platform.livestockmanagement.interfaces.acl.LotRecord;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -42,15 +43,27 @@ public class LivestockContextFacadeImpl implements LivestockContextFacade {
 
     private final LivestockManagementCommandService commandService;
     private final LivestockManagementQueryService queryService;
+    private final AnimalRepository animalRepository;
+    private final LotRepository lotRepository;
+    private final FeedingPlanRepository feedingPlanRepository;
+    private final FeedingLogRepository feedingLogRepository;
     private final Clock clock;
 
     public LivestockContextFacadeImpl(
             LivestockManagementCommandService commandService,
             LivestockManagementQueryService queryService,
+            AnimalRepository animalRepository,
+            LotRepository lotRepository,
+            FeedingPlanRepository feedingPlanRepository,
+            FeedingLogRepository feedingLogRepository,
             Clock clock
     ) {
         this.commandService = commandService;
         this.queryService = queryService;
+        this.animalRepository = animalRepository;
+        this.lotRepository = lotRepository;
+        this.feedingPlanRepository = feedingPlanRepository;
+        this.feedingLogRepository = feedingLogRepository;
         this.clock = clock;
     }
 
@@ -168,8 +181,12 @@ public class LivestockContextFacadeImpl implements LivestockContextFacade {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<AnimalRecord> listAnimalsOf(String rancherId) {
-        return queryService.handle(new GetAllAnimalsQuery()).stream()
+        if (isBlank(rancherId)) {
+            return List.of();
+        }
+        return animalRepository.findAllByRancherId(rancherId).stream()
                 .filter(animal -> isOwnedBy(rancherId, animal.getRancherId()))
                 .map(animal -> new AnimalRecord(
                         animal.getId(),
@@ -184,6 +201,7 @@ public class LivestockContextFacadeImpl implements LivestockContextFacade {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<LotRecord> listLotsOf(String rancherId) {
         return ownedLots(rancherId).stream()
                 .map(lot -> new LotRecord(lot.getId(), lot.getRancherId(), lot.getName()))
@@ -191,6 +209,7 @@ public class LivestockContextFacadeImpl implements LivestockContextFacade {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<FeedingPlanRecord> listFeedingPlansOf(String rancherId) {
         return ownedPlans(rancherId).stream()
                 .map(plan -> new FeedingPlanRecord(
@@ -199,6 +218,7 @@ public class LivestockContextFacadeImpl implements LivestockContextFacade {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<FeedingPlanItemRecord> listFeedingPlanItemsOf(String rancherId) {
         return ownedPlans(rancherId).stream()
                 .flatMap(plan -> plan.getItems().stream())
@@ -207,9 +227,13 @@ public class LivestockContextFacadeImpl implements LivestockContextFacade {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<FeedingLogRecord> listFeedingLogsOf(String rancherId) {
         var lotIds = ownedLotIds(rancherId);
-        return queryService.handle(new GetFeedingLogsQuery(null, null)).stream()
+        if (lotIds.isEmpty()) {
+            return List.of();
+        }
+        return feedingLogRepository.findAllByLotIds(lotIds).stream()
                 .filter(log -> lotIds.contains(log.getLotId()))
                 .map(log -> new FeedingLogRecord(
                         log.getPlanItemId(), log.getLotId(), log.getFeedName(),
@@ -218,7 +242,10 @@ public class LivestockContextFacadeImpl implements LivestockContextFacade {
     }
 
     private List<Lot> ownedLots(String rancherId) {
-        return queryService.handle(new GetAllLotsQuery()).stream()
+        if (isBlank(rancherId)) {
+            return List.of();
+        }
+        return lotRepository.findAllByRancherId(rancherId).stream()
                 .filter(lot -> isOwnedBy(rancherId, lot.getRancherId()))
                 .toList();
     }
@@ -229,9 +256,7 @@ public class LivestockContextFacadeImpl implements LivestockContextFacade {
 
     private List<FeedingPlan> ownedPlans(String rancherId) {
         var lotIds = ownedLotIds(rancherId);
-        return queryService.handle(new GetAllFeedingPlansQuery()).stream()
-                .filter(plan -> lotIds.contains(plan.getLotId()))
-                .toList();
+        return feedingPlanRepository.findAllByLotIds(lotIds);
     }
 
     private static boolean isOwnedBy(String rancherId, String owner) {
