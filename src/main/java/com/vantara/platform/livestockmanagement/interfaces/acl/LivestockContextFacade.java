@@ -81,4 +81,44 @@ public interface LivestockContextFacade {
             LocalDate weanedOn,
             BigDecimal weightKg
     );
+
+    /**
+     * Lists the animals owned by a rancher. Returns an empty list for a blank or unknown rancher.
+     *
+     * @param rancherId owner whose animals are listed
+     * @return the animals of that rancher only
+     */
+    List<AnimalRecord> listAnimalsOf(String rancherId);
+
+    /**
+     * Lists the lots owned by a rancher. Returns an empty list for a blank or unknown rancher.
+     *
+     * @param rancherId owner whose lots are listed
+     * @return the lots of that rancher only
+     */
+    List<LotRecord> listLotsOf(String rancherId);
+
+    /**
+     * Lists the feeding plans of the lots owned by a rancher.
+     *
+     * @param rancherId owner whose plans are listed
+     * @return the plans of that rancher's lots only
+     */
+    List<FeedingPlanRecord> listFeedingPlansOf(String rancherId);
+
+    /**
+     * Lists the ingredients of the feeding plans of a rancher's lots.
+     *
+     * @param rancherId owner whose plan items are listed
+     * @return the plan items of that rancher only
+     */
+    List<FeedingPlanItemRecord> listFeedingPlanItemsOf(String rancherId);
+
+    /**
+     * Lists the feeding records of the lots owned by a rancher.
+     *
+     * @param rancherId owner whose feeding records are listed
+     * @return the feeding records of that rancher's lots only
+     */
+    List<FeedingLogRecord> listFeedingLogsOf(String rancherId);
 }
