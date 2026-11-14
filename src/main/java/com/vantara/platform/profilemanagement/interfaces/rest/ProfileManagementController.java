@@ -1,8 +1,8 @@
 package com.vantara.platform.profilemanagement.interfaces.rest;
 
 import com.vantara.platform.iam.interfaces.acl.IamContextFacade;
-import com.vantara.platform.profilemanagement.application.commandservices.ProfileCommandService;
-import com.vantara.platform.profilemanagement.application.queryservices.ProfileQueryService;
+import com.vantara.platform.profilemanagement.application.commandservices.ProfileManagementCommandService;
+import com.vantara.platform.profilemanagement.application.queryservices.ProfileManagementQueryService;
 import com.vantara.platform.profilemanagement.domain.model.commands.CreateOrUpdateProfileCommand;
 import com.vantara.platform.profilemanagement.domain.model.queries.GetProfileByUserIdQuery;
 import com.vantara.platform.profilemanagement.interfaces.rest.resources.ProfileResource;
@@ -39,14 +39,14 @@ import java.util.Optional;
 @RequestMapping(value = "/api/v1/profiles", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Profiles", description = "Personal data and preferences of the authenticated user")
 @SecurityRequirement(name = "bearerAuth")
-public class ProfilesController {
+public class ProfileManagementController {
 
-    private final ProfileCommandService profileCommandService;
-    private final ProfileQueryService profileQueryService;
+    private final ProfileManagementCommandService profileCommandService;
+    private final ProfileManagementQueryService profileQueryService;
     private final IamContextFacade iamContextFacade;
 
-    public ProfilesController(ProfileCommandService profileCommandService,
-                              ProfileQueryService profileQueryService,
+    public ProfileManagementController(ProfileManagementCommandService profileCommandService,
+                              ProfileManagementQueryService profileQueryService,
                               IamContextFacade iamContextFacade) {
         this.profileCommandService = profileCommandService;
         this.profileQueryService = profileQueryService;

@@ -24,7 +24,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-class ProfilesEndpointsTest {
+class ProfileManagementEndpointsTest {
 
     private static final String EMAIL = "profile-endpoints@example.com";
     private static final String EMPTY_EMAIL = "profile-empty@example.com";

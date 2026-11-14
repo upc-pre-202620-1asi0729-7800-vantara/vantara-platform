@@ -1,6 +1,6 @@
 package com.vantara.platform.profilemanagement.application.internal.queryservices;
 
-import com.vantara.platform.profilemanagement.application.queryservices.ProfileQueryService;
+import com.vantara.platform.profilemanagement.application.queryservices.ProfileManagementQueryService;
 import com.vantara.platform.profilemanagement.domain.model.aggregates.Profile;
 import com.vantara.platform.profilemanagement.domain.model.queries.GetProfileByUserIdQuery;
 import com.vantara.platform.profilemanagement.domain.repositories.ProfileRepository;
@@ -12,11 +12,11 @@ import java.util.Optional;
  * Implements the profile queries of the read side.
  */
 @Service
-public class ProfileQueryServiceImpl implements ProfileQueryService {
+public class ProfileManagementQueryServiceImpl implements ProfileManagementQueryService {
 
     private final ProfileRepository profileRepository;
 
-    public ProfileQueryServiceImpl(ProfileRepository profileRepository) {
+    public ProfileManagementQueryServiceImpl(ProfileRepository profileRepository) {
         this.profileRepository = profileRepository;
     }
 

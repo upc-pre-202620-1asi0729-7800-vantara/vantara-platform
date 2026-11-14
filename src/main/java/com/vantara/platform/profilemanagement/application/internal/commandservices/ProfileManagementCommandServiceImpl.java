@@ -1,6 +1,6 @@
 package com.vantara.platform.profilemanagement.application.internal.commandservices;
 
-import com.vantara.platform.profilemanagement.application.commandservices.ProfileCommandService;
+import com.vantara.platform.profilemanagement.application.commandservices.ProfileManagementCommandService;
 import com.vantara.platform.profilemanagement.domain.model.aggregates.Profile;
 import com.vantara.platform.profilemanagement.domain.model.commands.CreateOrUpdateProfileCommand;
 import com.vantara.platform.profilemanagement.domain.repositories.ProfileRepository;
@@ -16,12 +16,12 @@ import java.time.Clock;
  * time an account saves one, and updated afterwards.
  */
 @Service
-public class ProfileCommandServiceImpl implements ProfileCommandService {
+public class ProfileManagementCommandServiceImpl implements ProfileManagementCommandService {
 
     private final ProfileRepository profileRepository;
     private final Clock clock;
 
-    public ProfileCommandServiceImpl(ProfileRepository profileRepository, Clock clock) {
+    public ProfileManagementCommandServiceImpl(ProfileRepository profileRepository, Clock clock) {
         this.profileRepository = profileRepository;
         this.clock = clock;
     }

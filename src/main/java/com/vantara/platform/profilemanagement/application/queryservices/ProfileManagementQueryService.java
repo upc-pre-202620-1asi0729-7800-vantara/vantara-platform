@@ -8,7 +8,7 @@ import java.util.Optional;
 /**
  * Read-side contract of the profile queries.
  */
-public interface ProfileQueryService {
+public interface ProfileManagementQueryService {
 
     Optional<Profile> handle(GetProfileByUserIdQuery query);
 }

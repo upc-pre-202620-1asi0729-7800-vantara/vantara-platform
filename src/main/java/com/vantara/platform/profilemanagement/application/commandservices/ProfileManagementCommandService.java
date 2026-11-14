@@ -8,7 +8,7 @@ import com.vantara.platform.shared.application.result.Result;
 /**
  * Write-side contract of the profile use cases.
  */
-public interface ProfileCommandService {
+public interface ProfileManagementCommandService {
 
     /**
      * Creates the profile of an account, or updates the existing one.
