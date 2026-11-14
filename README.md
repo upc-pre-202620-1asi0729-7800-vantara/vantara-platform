@@ -14,7 +14,7 @@ comprobantes), además de los demás contextos integrados desde sus ramas
 - Java 27
 - Spring Boot 4.1.2 (Web MVC, Data JPA, Validation, Security)
 - JWT (jjwt 0.12.6) y BCrypt
-- Flyway (el esquema se crea con migraciones; Hibernate solo valida)
+- Hibernate crea y actualiza el esquema a partir de las entidades JPA (`ddl-auto=update`)
 - MySQL 8 en desarrollo/producción, H2 en memoria para las pruebas
 - springdoc-openapi / Swagger UI
 - Maven
@@ -89,7 +89,7 @@ $env:JAVA_HOME="C:\ruta\al\jdk-27"
 .\mvnw.cmd -B -Dmaven.artifact.threads=1 clean test
 ```
 
-Las pruebas usan H2 en memoria (perfil `test`) con el esquema de Flyway; no necesitan MySQL ni Docker.
+Las pruebas usan H2 en memoria (perfil `test`) con el esquema generado por Hibernate; no necesitan MySQL ni Docker.
 
 ## Swagger / OpenAPI
 
