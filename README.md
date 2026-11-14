@@ -71,12 +71,12 @@ comprobantes), además de los demás contextos integrados desde sus ramas
 
 Las rutas protegidas esperan `Authorization: Bearer <token>`.
 
-## API de Profile
+## API de Profile Management
 
 | Método y ruta | Acceso | Descripción |
 |---|---|---|
-| `GET /api/v1/profiles/me` | token | Perfil del usuario autenticado; responde `404` hasta que lo guarde por primera vez |
-| `PUT /api/v1/profiles/me` | token | Crea o actualiza el perfil propio: nombre, organización, teléfono, foto, tema e idioma |
+| `GET /api/v1/profile-management/profiles/me` | token | Perfil del usuario autenticado; responde `404` hasta que lo guarde por primera vez |
+| `PUT /api/v1/profile-management/profiles/me` | token | Crea o actualiza el perfil propio: nombre, organización, teléfono, foto, tema e idioma |
 
 El `userId` no lo envía el cliente: se resuelve del token con la ACL de IAM
 (`IamContextFacade`), y el correo electrónico no se guarda en el perfil porque
@@ -136,7 +136,7 @@ src/main/java/com/vantara/platform/
 │   └── interfaces/rest/                             # GlobalExceptionHandler, resources/, transform/
 ├── iam/                                             # bounded context Identity and Access Management
 │   └── domain/  application/  infrastructure/  interfaces/   # ver la estructura siguiente
-├── profile/                                         # bounded context Profile Management
+├── profilemanagement/                               # bounded context Profile Management
 │   └── domain/  application/  infrastructure/  interfaces/
 └── payments/
     ├── domain/model/aggregates/                     # Payment
