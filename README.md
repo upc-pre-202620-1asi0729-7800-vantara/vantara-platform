@@ -82,6 +82,17 @@ El `userId` no lo envía el cliente: se resuelve del token con la ACL de IAM
 (`IamContextFacade`), y el correo electrónico no se guarda en el perfil porque
 es propiedad del contexto IAM.
 
+## API de Reports
+
+| Método y ruta | Acceso | Descripción |
+|---|---|---|
+| `GET /api/v1/reports/livestock` | token | Reporte de ganado: `startsOn`, `endsOn`, `lotId`, `breed`, `sex`, `status` |
+| `GET /api/v1/reports/feeding` | token | Reporte de alimentación: `startsOn`, `endsOn`, `lotId` |
+
+El ranchero se resuelve del token con la ACL de IAM (`IamContextFacade`); no se acepta un `rancherId` del cliente.
+Mientras livestock no publique lecturas por ranchero, responde `503 REPORT_SOURCE_UNAVAILABLE`.
+Contrato, reglas de cálculo y bloqueos en [docs/reports.md](docs/reports.md).
+
 ## Pruebas
 
 ```powershell
