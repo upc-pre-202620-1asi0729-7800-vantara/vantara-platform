@@ -18,6 +18,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -76,6 +77,12 @@ public class ReportsController {
         var filter = ReportFilterAssembler.toFeedingFilter(startsOn, endsOn, lotId);
         var report = reportQueryService.handle(new GetFeedingReportQuery(rancherId.orElseThrow(), filter));
         return ResponseEntity.ok(FeedingReportResourceFromEntityAssembler.toResourceFromEntity(report));
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResource> handleInvalidParameter(MethodArgumentTypeMismatchException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResource("VALIDATION_ERROR", "Parameter '" + ex.getName() + "' is invalid"));
     }
 
     @ExceptionHandler(ReportSourceUnavailableException.class)
