@@ -36,8 +36,8 @@ import java.util.Optional;
  * bearer token, so a user can only read and edit their own profile.
  */
 @RestController
-@RequestMapping(value = "/api/v1/profiles", produces = MediaType.APPLICATION_JSON_VALUE)
-@Tag(name = "Profiles", description = "Personal data and preferences of the authenticated user")
+@RequestMapping(value = "/api/v1/profile-management/profiles", produces = MediaType.APPLICATION_JSON_VALUE)
+@Tag(name = "Profile Management", description = "Personal data and preferences of the authenticated user")
 @SecurityRequirement(name = "bearerAuth")
 public class ProfileManagementController {
 

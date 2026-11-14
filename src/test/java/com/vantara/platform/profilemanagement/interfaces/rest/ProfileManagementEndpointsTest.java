@@ -45,7 +45,7 @@ class ProfileManagementEndpointsTest {
     @Test
     @WithMockUser(username = EMPTY_EMAIL)
     void answersNotFoundBeforeTheFirstSave() throws Exception {
-        mockMvc.perform(get("/api/v1/profiles/me"))
+        mockMvc.perform(get("/api/v1/profile-management/profiles/me"))
                 .andExpect(status().isNotFound());
     }
 
@@ -56,7 +56,7 @@ class ProfileManagementEndpointsTest {
                 {"fullName":"Ana Pérez","organizationName":"Agrosur","phone":"+51 999 999 999",
                  "photoUrl":"","theme":"dark","locale":"es"}
                 """;
-        mockMvc.perform(put("/api/v1/profiles/me")
+        mockMvc.perform(put("/api/v1/profile-management/profiles/me")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(createBody))
                 .andExpect(status().isOk())
@@ -66,7 +66,7 @@ class ProfileManagementEndpointsTest {
                 .andExpect(jsonPath("$.theme").value("dark"))
                 .andExpect(jsonPath("$.locale").value("es"));
 
-        mockMvc.perform(get("/api/v1/profiles/me"))
+        mockMvc.perform(get("/api/v1/profile-management/profiles/me"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.userId").isNumber())
                 .andExpect(jsonPath("$.fullName").value("Ana Pérez"))
@@ -77,7 +77,7 @@ class ProfileManagementEndpointsTest {
                 {"fullName":"Ana Pérez","organizationName":"Agrosur","phone":"",
                  "photoUrl":"https://cdn.example/ana.png","theme":"light","locale":"en"}
                 """;
-        mockMvc.perform(put("/api/v1/profiles/me")
+        mockMvc.perform(put("/api/v1/profile-management/profiles/me")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(updateBody))
                 .andExpect(status().isOk())
@@ -94,7 +94,7 @@ class ProfileManagementEndpointsTest {
                 {"fullName":"Ana Pérez","organizationName":"Agrosur","phone":"",
                  "photoUrl":"","theme":"blue","locale":"es"}
                 """;
-        mockMvc.perform(put("/api/v1/profiles/me")
+        mockMvc.perform(put("/api/v1/profile-management/profiles/me")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest());
@@ -102,9 +102,9 @@ class ProfileManagementEndpointsTest {
 
     @Test
     void rejectsAnonymousAccess() throws Exception {
-        mockMvc.perform(get("/api/v1/profiles/me"))
+        mockMvc.perform(get("/api/v1/profile-management/profiles/me"))
                 .andExpect(status().isUnauthorized());
-        mockMvc.perform(put("/api/v1/profiles/me")
+        mockMvc.perform(put("/api/v1/profile-management/profiles/me")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isUnauthorized());
