@@ -24,4 +24,8 @@ public interface PaymentQueryService {
      * @return matching payment, if any
      */
     Optional<Payment> findById(String id);
+
+    List<Payment> findAllByRancherId(String rancherId);
+
+    Optional<Payment> findByIdAndRancherId(String id, String rancherId);
 }

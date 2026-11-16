@@ -26,10 +26,14 @@ public interface PaymentRepository {
      */
     Optional<Payment> findById(String id);
 
+    Optional<Payment> findByIdAndRancherId(String id, String rancherId);
+
     /**
      * Returns all payments ordered by creation instant ascending.
      *
      * @return ordered payments
      */
     List<Payment> findAllOrderByCreatedAtAsc();
+
+    List<Payment> findAllByRancherIdOrderByCreatedAtAsc(String rancherId);
 }

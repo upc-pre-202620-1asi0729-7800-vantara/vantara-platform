@@ -8,6 +8,7 @@ import com.vantara.platform.payments.interfaces.rest.resources.CreatePaymentReso
 import com.vantara.platform.payments.interfaces.rest.resources.PaymentResource;
 import com.vantara.platform.payments.interfaces.rest.transform.CreatePaymentCommandMapper;
 import com.vantara.platform.payments.interfaces.rest.transform.PaymentResourceMapper;
+import com.vantara.platform.iam.interfaces.acl.AuthenticatedUserIdentity;
 import com.vantara.platform.shared.application.result.Result;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -30,6 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.net.URI;
 import java.util.List;
 import java.util.Locale;
+import java.security.Principal;
 
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
@@ -46,17 +48,20 @@ public class PaymentsController {
     private final CreatePaymentCommandMapper commandMapper;
     private final PaymentResourceMapper resourceMapper;
     private final MessageSource messageSource;
+    private final AuthenticatedUserIdentity identity;
 
     public PaymentsController(PaymentCommandService commandService,
                               PaymentQueryService queryService,
                               CreatePaymentCommandMapper commandMapper,
                               PaymentResourceMapper resourceMapper,
-                              MessageSource messageSource) {
+                              MessageSource messageSource,
+                              AuthenticatedUserIdentity identity) {
         this.commandService = commandService;
         this.queryService = queryService;
         this.commandMapper = commandMapper;
         this.resourceMapper = resourceMapper;
         this.messageSource = messageSource;
+        this.identity = identity;
     }
 
     /**
@@ -74,8 +79,10 @@ public class PaymentsController {
                     content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
     })
     @PostMapping
-    public ResponseEntity<?> create(@Valid @RequestBody CreatePaymentResource resource, Locale locale) {
-        var result = commandService.handle(commandMapper.toCommand(resource));
+    public ResponseEntity<?> create(@Valid @RequestBody CreatePaymentResource resource, Locale locale, Principal principal) {
+        var owner = identity.rancherId(principal);
+        if (owner.isEmpty()) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        var result = commandService.handle(commandMapper.toCommand(resource, owner.get()));
         if (result instanceof Result.Failure<Payment, PaymentCommandFailure> failure) {
             var message = messageSource.getMessage(
                     failure.error().messageKey(), null, failure.error().messageKey(), locale);
@@ -96,8 +103,10 @@ public class PaymentsController {
     @Operation(summary = "List payments", description = "Returns payments ordered by creation instant ascending")
     @ApiResponse(responseCode = "200", description = "Payments found")
     @GetMapping
-    public ResponseEntity<List<PaymentResource>> findAll() {
-        return ResponseEntity.ok(resourceMapper.toResources(queryService.findAll()));
+    public ResponseEntity<?> findAll(Principal principal) {
+        var owner = identity.rancherId(principal);
+        if (owner.isEmpty()) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        return ResponseEntity.ok(resourceMapper.toResources(queryService.findAllByRancherId(owner.get())));
     }
 
     /**
@@ -115,8 +124,10 @@ public class PaymentsController {
                     content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
     })
     @GetMapping("/{id}")
-    public ResponseEntity<?> findById(@PathVariable String id, Locale locale) {
-        return queryService.findById(id)
+    public ResponseEntity<?> findById(@PathVariable String id, Locale locale, Principal principal) {
+        var owner = identity.rancherId(principal);
+        if (owner.isEmpty()) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        return queryService.findByIdAndRancherId(id, owner.get())
                 .<ResponseEntity<?>>map(payment -> ResponseEntity.ok(resourceMapper.toResource(payment)))
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(ProblemDetail.forStatusAndDetail(

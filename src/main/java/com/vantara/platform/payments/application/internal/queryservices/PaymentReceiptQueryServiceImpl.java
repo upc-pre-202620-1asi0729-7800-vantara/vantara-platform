@@ -37,6 +37,12 @@ public class PaymentReceiptQueryServiceImpl implements PaymentReceiptQueryServic
 
     @Override
     @Transactional(readOnly = true)
+    public Optional<PaymentReceipt> findById(String receiptId) {
+        return receiptRepository.findById(receiptId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Optional<byte[]> renderDocument(String receiptId) {
         return receiptRepository.findById(receiptId)
                 .flatMap(receipt -> paymentRepository.findById(receipt.getPaymentId())

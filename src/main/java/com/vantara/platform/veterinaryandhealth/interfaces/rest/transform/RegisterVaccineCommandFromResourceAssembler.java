@@ -1,3 +1,4 @@
+
 package com.vantara.platform.veterinaryandhealth.interfaces.rest.transform;
 
 import com.vantara.platform.veterinaryandhealth.domain.model.commands.RegisterVaccineCommand;
@@ -9,16 +10,18 @@ import com.vantara.platform.veterinaryandhealth.interfaces.rest.resources.Regist
 
 import java.util.Locale;
 
-/**
- * Translates a vaccine registration request into a {@link RegisterVaccineCommand}.
- */
 public final class RegisterVaccineCommandFromResourceAssembler {
 
     private RegisterVaccineCommandFromResourceAssembler() {
     }
 
-    public static RegisterVaccineCommand toCommandFromResource(RegisterVaccineResource resource) {
+    public static RegisterVaccineCommand toCommandFromResource(
+            RegisterVaccineResource resource,
+            Long actorId) {
+
         return new RegisterVaccineCommand(
+                actorId,
+                resource.appointmentId(),
                 new AnimalId(resource.animalId()),
                 new UserId(resource.veterinarianId()),
                 resource.vaccineType(),
@@ -30,7 +33,9 @@ public final class RegisterVaccineCommandFromResourceAssembler {
                 resource.nextDoseAt(),
                 resource.route(),
                 resource.applicationSite(),
-                VaccineStatus.valueOf(resource.status().trim().toLowerCase(Locale.ROOT)),
-                resource.observations());
+                VaccineStatus.valueOf(
+                        resource.status().trim().toLowerCase(Locale.ROOT)),
+                resource.observations()
+        );
     }
 }

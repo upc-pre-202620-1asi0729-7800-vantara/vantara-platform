@@ -23,6 +23,7 @@ public interface LivestockContextFacade {
      * @return {@code true} when the animal exists
      */
     boolean existsAnimal(String animalId);
+    Optional<AnimalRecord> findAnimalById(String animalId);
 
     /**
      * @param animalId identifier of the animal

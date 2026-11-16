@@ -1,6 +1,8 @@
 package com.vantara.platform.payments.interfaces.rest;
 
 import com.vantara.platform.payments.application.queryservices.PaymentReceiptQueryService;
+import com.vantara.platform.payments.application.queryservices.PaymentQueryService;
+import com.vantara.platform.iam.interfaces.acl.AuthenticatedUserIdentity;
 import com.vantara.platform.payments.interfaces.rest.resources.PaymentReceiptResource;
 import com.vantara.platform.payments.interfaces.rest.transform.PaymentReceiptResourceMapper;
 import io.swagger.v3.oas.annotations.Operation;
@@ -23,6 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.Locale;
+import java.security.Principal;
 
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
@@ -37,13 +40,19 @@ public class PaymentReceiptsController {
     private final PaymentReceiptQueryService queryService;
     private final PaymentReceiptResourceMapper resourceMapper;
     private final MessageSource messageSource;
+    private final PaymentQueryService paymentQueryService;
+    private final AuthenticatedUserIdentity identity;
 
     public PaymentReceiptsController(PaymentReceiptQueryService queryService,
                                      PaymentReceiptResourceMapper resourceMapper,
-                                     MessageSource messageSource) {
+                                     MessageSource messageSource,
+                                     PaymentQueryService paymentQueryService,
+                                     AuthenticatedUserIdentity identity) {
         this.queryService = queryService;
         this.resourceMapper = resourceMapper;
         this.messageSource = messageSource;
+        this.paymentQueryService = paymentQueryService;
+        this.identity = identity;
     }
 
     /**
@@ -64,12 +73,16 @@ public class PaymentReceiptsController {
     @GetMapping(produces = APPLICATION_JSON_VALUE)
     public ResponseEntity<?> findByPaymentId(
             @RequestParam(name = "paymentId", required = false) String paymentId,
-            Locale locale) {
+            Locale locale,
+            Principal principal) {
+        var owner = identity.rancherId(principal);
+        if (owner.isEmpty()) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         if (paymentId == null || paymentId.isBlank()) {
             return ResponseEntity.badRequest().body(ProblemDetail.forStatusAndDetail(
                     HttpStatus.BAD_REQUEST,
                     messageSource.getMessage("payment.error.receipt.paymentId.required", null, locale)));
         }
+        if (paymentQueryService.findByIdAndRancherId(paymentId, owner.get()).isEmpty()) return ResponseEntity.notFound().build();
         List<PaymentReceiptResource> receipts =
                 resourceMapper.toResources(queryService.findByPaymentId(paymentId));
         return ResponseEntity.ok(receipts);
@@ -90,7 +103,13 @@ public class PaymentReceiptsController {
                     content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
     })
     @GetMapping("/{id}/document")
-    public ResponseEntity<?> downloadDocument(@PathVariable String id, Locale locale) {
+    public ResponseEntity<?> downloadDocument(@PathVariable String id, Locale locale, Principal principal) {
+        var owner = identity.rancherId(principal);
+        if (owner.isEmpty()) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        var receipt = queryService.findById(id);
+        if (receipt.isEmpty() || paymentQueryService.findByIdAndRancherId(receipt.orElseThrow().getPaymentId(), owner.get()).isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
         return queryService.renderDocument(id)
                 .<ResponseEntity<?>>map(bytes -> ResponseEntity.ok()
                         .contentType(MediaType.APPLICATION_PDF)

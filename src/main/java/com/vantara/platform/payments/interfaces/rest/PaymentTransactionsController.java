@@ -1,6 +1,8 @@
 package com.vantara.platform.payments.interfaces.rest;
 
 import com.vantara.platform.payments.application.queryservices.PaymentTransactionQueryService;
+import com.vantara.platform.payments.application.queryservices.PaymentQueryService;
+import com.vantara.platform.iam.interfaces.acl.AuthenticatedUserIdentity;
 import com.vantara.platform.payments.interfaces.rest.resources.PaymentTransactionResource;
 import com.vantara.platform.payments.interfaces.rest.transform.PaymentTransactionResourceMapper;
 import io.swagger.v3.oas.annotations.Operation;
@@ -20,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.Locale;
+import java.security.Principal;
 
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
@@ -34,13 +37,19 @@ public class PaymentTransactionsController {
     private final PaymentTransactionQueryService queryService;
     private final PaymentTransactionResourceMapper resourceMapper;
     private final MessageSource messageSource;
+    private final PaymentQueryService paymentQueryService;
+    private final AuthenticatedUserIdentity identity;
 
     public PaymentTransactionsController(PaymentTransactionQueryService queryService,
                                          PaymentTransactionResourceMapper resourceMapper,
-                                         MessageSource messageSource) {
+                                         MessageSource messageSource,
+                                         PaymentQueryService paymentQueryService,
+                                         AuthenticatedUserIdentity identity) {
         this.queryService = queryService;
         this.resourceMapper = resourceMapper;
         this.messageSource = messageSource;
+        this.paymentQueryService = paymentQueryService;
+        this.identity = identity;
     }
 
     /**
@@ -61,12 +70,16 @@ public class PaymentTransactionsController {
     @GetMapping
     public ResponseEntity<?> findByPaymentId(
             @RequestParam(name = "paymentId", required = false) String paymentId,
-            Locale locale) {
+            Locale locale,
+            Principal principal) {
+        var owner = identity.rancherId(principal);
+        if (owner.isEmpty()) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         if (paymentId == null || paymentId.isBlank()) {
             return ResponseEntity.badRequest().body(ProblemDetail.forStatusAndDetail(
                     HttpStatus.BAD_REQUEST,
                     messageSource.getMessage("payment.error.transaction.paymentId.required", null, locale)));
         }
+        if (paymentQueryService.findByIdAndRancherId(paymentId, owner.get()).isEmpty()) return ResponseEntity.notFound().build();
         List<PaymentTransactionResource> transactions =
                 resourceMapper.toResources(queryService.findByPaymentId(paymentId));
         return ResponseEntity.ok(transactions);

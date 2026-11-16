@@ -16,4 +16,8 @@ public interface PaymentJpaRepository extends JpaRepository<PaymentJpaEntity, St
      * @return ordered payments
      */
     List<PaymentJpaEntity> findAllByOrderByCreatedAtAsc();
+
+    List<PaymentJpaEntity> findAllByRancherIdOrderByCreatedAtAsc(String rancherId);
+
+    java.util.Optional<PaymentJpaEntity> findByIdAndRancherId(String id, String rancherId);
 }

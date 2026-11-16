@@ -12,6 +12,10 @@ import org.springframework.stereotype.Component;
 public class CreatePaymentCommandMapper {
 
     public CreatePaymentCommand toCommand(CreatePaymentResource resource) {
+        return toCommand(resource, resource.rancherId());
+    }
+
+    public CreatePaymentCommand toCommand(CreatePaymentResource resource, String rancherId) {
         var methodResource = resource.paymentMethod();
         PaymentMethod paymentMethod = methodResource == null
                 ? null
@@ -21,7 +25,7 @@ public class CreatePaymentCommandMapper {
                         methodResource.holderName()
                 );
         return new CreatePaymentCommand(
-                resource.rancherId(),
+                rancherId,
                 resource.appointmentId(),
                 resource.concept(),
                 resource.amount(),

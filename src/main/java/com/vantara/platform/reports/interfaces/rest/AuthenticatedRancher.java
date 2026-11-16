@@ -1,6 +1,6 @@
 package com.vantara.platform.reports.interfaces.rest;
 
-import com.vantara.platform.iam.interfaces.acl.IamContextFacade;
+import com.vantara.platform.iam.interfaces.acl.AuthenticatedUserIdentity;
 import org.springframework.stereotype.Component;
 
 import java.security.Principal;
@@ -13,19 +13,16 @@ import java.util.Optional;
 @Component
 public class AuthenticatedRancher {
 
-    private final IamContextFacade iamContextFacade;
+    private final AuthenticatedUserIdentity identity;
 
-    public AuthenticatedRancher(IamContextFacade iamContextFacade) {
-        this.iamContextFacade = iamContextFacade;
+    public AuthenticatedRancher(AuthenticatedUserIdentity identity) {
+        this.identity = identity;
     }
 
     /**
      * @return the owner key used by livestock, or empty when the principal has no IAM account
      */
     public Optional<String> resolve(Principal principal) {
-        if (principal == null || principal.getName() == null || principal.getName().isBlank()) {
-            return Optional.empty();
-        }
-        return iamContextFacade.fetchUserIdByEmail(principal.getName()).map(String::valueOf);
+        return identity.rancherId(principal);
     }
 }

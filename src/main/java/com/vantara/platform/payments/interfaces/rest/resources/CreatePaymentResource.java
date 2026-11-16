@@ -21,7 +21,6 @@ import java.math.BigDecimal;
 @Schema(name = "CreatePaymentRequest", description = "Payment creation request")
 public record CreatePaymentResource(
         @Schema(description = "Rancher identifier", example = "usr-002", maxLength = 36)
-        @NotBlank(message = "{payment.error.rancherId.required}")
         @Size(max = 36, message = "{payment.error.rancherId.invalid}")
         String rancherId,
 

@@ -1,3 +1,4 @@
+
 package com.vantara.platform.veterinaryandhealth.interfaces.rest.transform;
 
 import com.vantara.platform.veterinaryandhealth.domain.model.commands.PrescribeTreatmentCommand;
@@ -9,16 +10,17 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 
-/**
- * Translates a treatment prescription request into a {@link PrescribeTreatmentCommand}.
- */
 public final class PrescribeTreatmentCommandFromResourceAssembler {
 
     private PrescribeTreatmentCommandFromResourceAssembler() {
     }
 
-    public static PrescribeTreatmentCommand toCommandFromResource(PrescribeTreatmentResource resource) {
+    public static PrescribeTreatmentCommand toCommandFromResource(
+            PrescribeTreatmentResource resource,
+            Long actorId) {
+
         return new PrescribeTreatmentCommand(
+                actorId,
                 resource.medicalRecordId(),
                 new AnimalId(resource.animalId()),
                 resource.medicationId(),
@@ -30,10 +32,13 @@ public final class PrescribeTreatmentCommandFromResourceAssembler {
                 toUtcDateTime(resource.scheduledAt()),
                 toUtcDateTime(resource.administeredAt()),
                 resource.nextDate(),
-                resource.instructions());
+                resource.instructions()
+        );
     }
 
     private static LocalDateTime toUtcDateTime(Instant instant) {
-        return instant == null ? null : LocalDateTime.ofInstant(instant, ZoneOffset.UTC);
+        return instant == null
+                ? null
+                : LocalDateTime.ofInstant(instant, ZoneOffset.UTC);
     }
 }

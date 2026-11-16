@@ -34,8 +34,20 @@ public class PaymentRepositoryAdapter implements PaymentRepository {
     }
 
     @Override
+    public Optional<Payment> findByIdAndRancherId(String id, String rancherId) {
+        return jpaRepository.findByIdAndRancherId(id, rancherId).map(mapper::toDomain);
+    }
+
+    @Override
     public List<Payment> findAllOrderByCreatedAtAsc() {
         return jpaRepository.findAllByOrderByCreatedAtAsc().stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<Payment> findAllByRancherIdOrderByCreatedAtAsc(String rancherId) {
+        return jpaRepository.findAllByRancherIdOrderByCreatedAtAsc(rancherId).stream()
                 .map(mapper::toDomain)
                 .toList();
     }

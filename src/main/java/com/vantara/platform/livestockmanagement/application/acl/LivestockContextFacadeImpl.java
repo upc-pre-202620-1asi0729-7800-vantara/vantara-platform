@@ -73,6 +73,30 @@ public class LivestockContextFacadeImpl implements LivestockContextFacade {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public Optional<AnimalRecord> findAnimalById(String animalId) {
+        return findAnimal(animalId)
+                .map(animal -> new AnimalRecord(
+                        animal.getId(),
+                        animal.getRancherId(),
+                        animal.getLotId(),
+                        animal.getEarTag().value(),
+                        animal.getName(),
+                        animal.getSpecies(),
+                        animal.getBreed(),
+                        animal.getSex(),
+                        animal.getBirthDate(),
+                        animal.getMotherId(),
+                        animal.getFatherId(),
+                        animal.getStatus(),
+                        animal.getWeight().value(),
+                        animal.getRegisteredAt(),
+                        animal.getPhotoUrl(),
+                        animal.getWeanedOn()
+                ));
+    }
+
+    @Override
     public boolean isReproductiveFemale(String animalId) {
         return findAnimal(animalId)
                 .filter(this::isActive)
@@ -186,17 +210,27 @@ public class LivestockContextFacadeImpl implements LivestockContextFacade {
         if (isBlank(rancherId)) {
             return List.of();
         }
+
         return animalRepository.findAllByRancherId(rancherId).stream()
                 .filter(animal -> isOwnedBy(rancherId, animal.getRancherId()))
                 .map(animal -> new AnimalRecord(
                         animal.getId(),
                         animal.getRancherId(),
                         animal.getLotId(),
+                        animal.getEarTag().value(),
+                        animal.getName(),
+                        animal.getSpecies(),
                         animal.getBreed(),
                         animal.getSex(),
+                        animal.getBirthDate(),
+                        animal.getMotherId(),
+                        animal.getFatherId(),
                         animal.getStatus(),
                         animal.getWeight().value(),
-                        animal.getRegisteredAt()))
+                        animal.getRegisteredAt(),
+                        animal.getPhotoUrl(),
+                        animal.getWeanedOn()
+                ))
                 .toList();
     }
 
