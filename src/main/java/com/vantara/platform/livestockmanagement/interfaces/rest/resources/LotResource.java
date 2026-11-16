@@ -6,7 +6,7 @@ import jakarta.validation.constraints.NotBlank;
 
 public record LotResource(
         String id,
-        @NotBlank String rancherId,
+        String rancherId,
         @NotBlank String name,
         @NotBlank String purpose,
         @NotBlank String status

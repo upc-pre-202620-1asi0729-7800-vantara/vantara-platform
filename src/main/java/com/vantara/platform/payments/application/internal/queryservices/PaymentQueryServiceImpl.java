@@ -32,4 +32,16 @@ public class PaymentQueryServiceImpl implements PaymentQueryService {
     public Optional<Payment> findById(String id) {
         return paymentRepository.findById(id);
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Payment> findAllByRancherId(String rancherId) {
+        return paymentRepository.findAllByRancherIdOrderByCreatedAtAsc(rancherId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<Payment> findByIdAndRancherId(String id, String rancherId) {
+        return paymentRepository.findByIdAndRancherId(id, rancherId);
+    }
 }

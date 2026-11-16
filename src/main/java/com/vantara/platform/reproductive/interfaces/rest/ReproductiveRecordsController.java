@@ -19,6 +19,8 @@ import com.vantara.platform.reproductive.interfaces.rest.transform.ReproductiveR
 import com.vantara.platform.shared.application.result.ApplicationError;
 import com.vantara.platform.shared.application.result.Result;
 import com.vantara.platform.shared.interfaces.rest.transform.ResponseEntityAssembler;
+import com.vantara.platform.iam.interfaces.acl.AuthenticatedUserIdentity;
+import com.vantara.platform.livestockmanagement.interfaces.acl.LivestockContextFacade;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -38,6 +40,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.security.Principal;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
@@ -51,12 +56,18 @@ public class ReproductiveRecordsController {
 
     private final ReproductiveRecordCommandService commandService;
     private final ReproductiveRecordQueryService queryService;
+    private final AuthenticatedUserIdentity identity;
+    private final LivestockContextFacade livestock;
 
     public ReproductiveRecordsController(
             ReproductiveRecordCommandService commandService,
-            ReproductiveRecordQueryService queryService) {
+            ReproductiveRecordQueryService queryService,
+            AuthenticatedUserIdentity identity,
+            LivestockContextFacade livestock) {
         this.commandService = commandService;
         this.queryService = queryService;
+        this.identity = identity;
+        this.livestock = livestock;
     }
 
     /**
@@ -81,7 +92,8 @@ public class ReproductiveRecordsController {
             @ApiResponse(responseCode = "409", description = "Conflict - the animal already has a pregnancy in progress"),
             @ApiResponse(responseCode = "422", description = "The animal is not an active adult female")
     })
-    public ResponseEntity<?> registerPregnancy(@RequestBody RegisterPregnancyResource resource) {
+    public ResponseEntity<?> registerPregnancy(@RequestBody RegisterPregnancyResource resource, Principal principal) {
+        if (!ownsAnimal(principal, resource.animalId())) return forbidden();
         var command = RegisterPregnancyCommandFromResourceAssembler.toCommandFromResource(resource);
         var result = commandService.handle(command).flatMap(this::findRecord);
         return ResponseEntityAssembler.toResponseEntityFromResult(
@@ -118,8 +130,10 @@ public class ReproductiveRecordsController {
             @Parameter(description = "Reproductive record identifier", example = "1", required = true)
             Long recordId,
 
-            @RequestBody RegisterCalvingResource resource
+            @RequestBody RegisterCalvingResource resource,
+            Principal principal
     ) {
+        if (!ownsRecord(principal, recordId)) return forbidden();
         var command = RegisterCalvingCommandFromResourceAssembler.toCommandFromResource(recordId, resource);
         var result = commandService.handle(command).flatMap(this::findRecord);
         return ResponseEntityAssembler.toResponseEntityFromResult(
@@ -155,8 +169,10 @@ public class ReproductiveRecordsController {
             @Parameter(description = "Reproductive record identifier", example = "1", required = true)
             Long recordId,
 
-            @RequestBody RegisterDryOffResource resource
+            @RequestBody RegisterDryOffResource resource,
+            Principal principal
     ) {
+        if (!ownsRecord(principal, recordId)) return forbidden();
         var command = RegisterDryOffCommandFromResourceAssembler.toCommandFromResource(recordId, resource);
         var result = commandService.handle(command).flatMap(this::findRecord);
         return ResponseEntityAssembler.toResponseEntityFromResult(
@@ -192,8 +208,10 @@ public class ReproductiveRecordsController {
             @Parameter(description = "Reproductive record identifier", example = "1", required = true)
             Long recordId,
 
-            @RequestBody RegisterWeaningResource resource
+            @RequestBody RegisterWeaningResource resource,
+            Principal principal
     ) {
+        if (!ownsRecord(principal, recordId)) return forbidden();
         var command = RegisterWeaningCommandFromResourceAssembler.toCommandFromResource(recordId, resource);
         var result = commandService.handle(command).flatMap(this::findRecord);
         return ResponseEntityAssembler.toResponseEntityFromResult(
@@ -225,12 +243,18 @@ public class ReproductiveRecordsController {
     public ResponseEntity<List<ReproductiveRecordResource>> getReproductiveHistory(
             @RequestParam(required = false)
             @Parameter(description = "Animal identifier to filter by", example = "3f2b8c9e-5d41-4a7e-9c1a-0b6d2e8f7a14")
-            String animalId
+            String animalId,
+            Principal principal
     ) {
+        var owner = identity.rancherId(principal);
+        if (owner.isEmpty()) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        var owned = animalIds(owner.get());
+        if (animalId != null && !owned.contains(animalId)) return ResponseEntity.notFound().build();
         var records = animalId == null
                 ? queryService.handle(new GetAllReproductiveRecordsQuery())
                 : queryService.handle(new GetReproductiveRecordsByAnimalIdQuery(animalId));
         var resources = records.stream()
+                .filter(record -> owned.contains(record.getAnimalId().animalId()))
                 .map(ReproductiveRecordResourceFromEntityAssembler::toResourceFromEntity)
                 .toList();
         return ResponseEntity.ok(resources);
@@ -258,8 +282,10 @@ public class ReproductiveRecordsController {
     public ResponseEntity<?> getReproductiveRecordById(
             @PathVariable
             @Parameter(description = "Reproductive record identifier", example = "1", required = true)
-            Long recordId
+            Long recordId,
+            Principal principal
     ) {
+        if (!ownsRecord(principal, recordId)) return ResponseEntity.notFound().build();
         var result = findRecord(recordId);
         return ResponseEntityAssembler.toResponseEntityFromResult(
                 result,
@@ -271,5 +297,26 @@ public class ReproductiveRecordsController {
         return queryService.handle(new GetReproductiveRecordByIdQuery(recordId))
                 .<Result<ReproductiveRecord, ApplicationError>>map(Result::success)
                 .orElseGet(() -> Result.failure(ApplicationError.notFound("ReproductiveRecord", recordId.toString())));
+    }
+
+    private boolean ownsAnimal(Principal principal, String animalId) {
+        var owner = identity.rancherId(principal);
+        return owner.isPresent() && animalId != null && animalIds(owner.get()).contains(animalId);
+    }
+
+    private boolean ownsRecord(Principal principal, Long recordId) {
+        var owner = identity.rancherId(principal);
+        if (owner.isEmpty() || recordId == null) return false;
+        return queryService.handle(new GetReproductiveRecordByIdQuery(recordId))
+                .map(record -> animalIds(owner.get()).contains(record.getAnimalId().animalId()))
+                .orElse(false);
+    }
+
+    private Set<String> animalIds(String ownerId) {
+        return livestock.listAnimalsOf(ownerId).stream().map(record -> record.id()).collect(Collectors.toSet());
+    }
+
+    private static ResponseEntity<?> forbidden() {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
     }
 }

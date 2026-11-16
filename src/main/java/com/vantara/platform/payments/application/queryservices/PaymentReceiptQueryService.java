@@ -18,6 +18,8 @@ public interface PaymentReceiptQueryService {
      */
     List<PaymentReceipt> findByPaymentId(String paymentId);
 
+    Optional<PaymentReceipt> findById(String receiptId);
+
     /**
      * Renders the PDF document of a receipt.
      *

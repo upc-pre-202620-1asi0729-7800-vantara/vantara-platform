@@ -47,6 +47,7 @@ public record FeedingPlanResource(
     }
 
     public record ItemResource(
+            String id,
             @NotBlank String feedName,
             @NotNull @DecimalMin("0") BigDecimal dailyQuantity,
             @NotBlank String unit
@@ -81,6 +82,7 @@ public record FeedingPlanResource(
 
                 plan.getItems().stream()
                         .map(item -> new ItemResource(
+                                item.getId(),
                                 item.getFeedName(),
                                 item.getDailyQuantity(),
                                 item.getUnit()

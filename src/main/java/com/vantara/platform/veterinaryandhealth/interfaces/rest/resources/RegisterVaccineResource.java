@@ -1,3 +1,4 @@
+
 package com.vantara.platform.veterinaryandhealth.interfaces.rest.resources;
 
 import jakarta.validation.constraints.NotBlank;
@@ -12,6 +13,7 @@ import java.time.LocalDate;
  * Request resource used to register a vaccine dose.
  */
 public record RegisterVaccineResource(
+        @NotBlank String appointmentId,
         @NotBlank String animalId,
         @NotNull Long veterinarianId,
         String vaccineType,
@@ -25,5 +27,6 @@ public record RegisterVaccineResource(
         String route,
         String applicationSite,
         @NotBlank String status,
-        String observations) {
+        String observations
+) {
 }

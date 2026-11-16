@@ -1,3 +1,4 @@
+
 package com.vantara.platform.veterinaryandhealth.interfaces.rest.transform;
 
 import com.vantara.platform.veterinaryandhealth.domain.model.commands.CreateAppointmentCommand;
@@ -7,21 +8,26 @@ import com.vantara.platform.veterinaryandhealth.interfaces.rest.resources.Create
 
 import java.util.Locale;
 
-/**
- * Translates a create-appointment request into a {@link CreateAppointmentCommand}.
- */
 public final class CreateAppointmentCommandFromResourceAssembler {
 
     private CreateAppointmentCommandFromResourceAssembler() {
     }
 
-    public static CreateAppointmentCommand toCommandFromResource(CreateAppointmentResource resource) {
+    public static CreateAppointmentCommand toCommandFromResource(
+            CreateAppointmentResource resource,
+            Long rancherId,
+            Long veterinarianId,
+            Long requestedBy) {
+
         return new CreateAppointmentCommand(
-                new UserId(resource.rancherId()),
-                new UserId(resource.veterinarianId()),
-                new UserId(resource.requestedBy()),
-                AppointmentOrigin.valueOf(resource.origin().trim().toUpperCase(Locale.ROOT)),
+                new UserId(rancherId),
+                new UserId(veterinarianId),
+                new UserId(requestedBy),
+                AppointmentOrigin.valueOf(
+                        resource.origin().trim().toUpperCase(Locale.ROOT)
+                ),
                 resource.scheduledAt(),
-                resource.reason());
+                resource.reason()
+        );
     }
 }

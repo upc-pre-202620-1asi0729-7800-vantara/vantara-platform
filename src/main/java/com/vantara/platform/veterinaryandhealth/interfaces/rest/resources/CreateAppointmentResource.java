@@ -1,3 +1,4 @@
+
 package com.vantara.platform.veterinaryandhealth.interfaces.rest.resources;
 
 import jakarta.validation.constraints.NotBlank;
@@ -10,10 +11,10 @@ import java.time.LocalDateTime;
  * Request resource used to schedule a veterinary appointment.
  */
 public record CreateAppointmentResource(
-        @NotNull Long rancherId,
-        @NotNull Long veterinarianId,
-        @NotNull Long requestedBy,
+        Long rancherId,
+        Long veterinarianId,
         @NotBlank String origin,
         @NotNull LocalDateTime scheduledAt,
-        @NotBlank @Size(max = 255) String reason) {
+        @NotBlank @Size(max = 255) String reason
+) {
 }

@@ -9,7 +9,7 @@ import java.time.LocalDate;
 
 public record AnimalResource(
         String id,
-        @NotBlank String rancherId,
+        String rancherId,
         @NotBlank String lotId,
         @NotBlank String earTag,
         @NotBlank String name,

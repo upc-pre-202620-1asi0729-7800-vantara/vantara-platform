@@ -1,6 +1,8 @@
 package com.vantara.platform.payments;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
+import com.vantara.platform.iam.interfaces.acl.IamContextFacade;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.test.context.support.WithMockUser;
@@ -15,11 +17,12 @@ import java.nio.charset.StandardCharsets;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ActiveProfiles("test")
-@WithMockUser
+@WithMockUser(username = "payments-owner@example.test")
 @SpringBootTest(properties = {
         "spring.datasource.url=jdbc:h2:mem:vantara_payments_api;MODE=MySQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE",
         "spring.datasource.driver-class-name=org.h2.Driver",
@@ -36,6 +39,14 @@ class PaymentsApiIntegrationTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private IamContextFacade iamContextFacade;
+
+    @BeforeEach
+    void registerAuthenticatedOwner() {
+        iamContextFacade.createUser("payments-owner@example.test", "Password1", null).orElseThrow();
+    }
 
     @Test
     void exposesTheFrontendPaymentContract() throws Exception {
@@ -67,6 +78,7 @@ class PaymentsApiIntegrationTest {
         var paymentJson = objectMapper.readTree(createResult.getResponse().getContentAsString());
         var paymentId = paymentJson.get("id").asText();
         assertThat(paymentJson.get("status").asText()).isEqualTo("paid");
+        assertThat(paymentJson.get("rancherId").asText()).isNotEqualTo("usr-002");
         assertThat(paymentJson.get("appointmentId").isNull()).isTrue();
         assertThat(paymentJson.get("paymentMethod").get("brand").asText()).isEqualTo("VISA");
         assertThat(paymentJson.get("paymentMethod").get("last4").asText()).isEqualTo("4582");
@@ -74,6 +86,10 @@ class PaymentsApiIntegrationTest {
         mockMvc.perform(get("/api/v1/payments/{id}", paymentId))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+
+        iamContextFacade.createUser("other-owner@example.test", "Password1", null).orElseThrow();
+        mockMvc.perform(get("/api/v1/payments/{id}", paymentId).with(user("other-owner@example.test")))
+                .andExpect(status().isNotFound());
 
         var transactionsResult = mockMvc.perform(get("/api/v1/transactions")
                         .param("paymentId", paymentId))

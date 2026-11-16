@@ -1,3 +1,4 @@
+
 package com.vantara.platform.veterinaryandhealth.interfaces.rest.transform;
 
 import com.vantara.platform.veterinaryandhealth.domain.model.commands.RegisterMedicalRecordCommand;
@@ -9,24 +10,28 @@ import com.vantara.platform.veterinaryandhealth.interfaces.rest.resources.Regist
 
 import java.util.Locale;
 
-/**
- * Translates a clinical record request into a {@link RegisterMedicalRecordCommand}.
- */
 public final class RegisterMedicalRecordCommandFromResourceAssembler {
 
     private RegisterMedicalRecordCommandFromResourceAssembler() {
     }
 
-    public static RegisterMedicalRecordCommand toCommandFromResource(RegisterMedicalRecordResource resource) {
+    public static RegisterMedicalRecordCommand toCommandFromResource(
+            RegisterMedicalRecordResource resource,
+            Long actorId) {
+
         return new RegisterMedicalRecordCommand(
                 resource.appointmentId(),
                 new AnimalId(resource.animalId()),
                 new UserId(resource.veterinarianId()),
+                actorId,
                 resource.recordedAt(),
                 resource.symptoms(),
                 resource.diagnosis(),
-                MedicalRecordSeverity.valueOf(resource.severity().trim().toLowerCase(Locale.ROOT)),
-                AnimalHealthStatus.valueOf(resource.healthStatus().trim().toLowerCase(Locale.ROOT)),
-                resource.notes());
+                MedicalRecordSeverity.valueOf(
+                        resource.severity().trim().toLowerCase(Locale.ROOT)),
+                AnimalHealthStatus.valueOf(
+                        resource.healthStatus().trim().toLowerCase(Locale.ROOT)),
+                resource.notes()
+        );
     }
 }
